@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Admin Panel{% endblock %}</title>
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='images/logos/aituc_logo.png') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.min.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body>
+  <div class="page-wrapper" id="main-wrapper" data-layout="vertical" data-navbarbg="skin6" data-sidebartype="full"
+    data-sidebar-position="fixed" data-header-position="fixed">
+
+    <!-- Sidebar -->
+    <aside class="left-sidebar">
+      <div class="brand-logo d-flex align-items-center justify-content-between">
+        <a href="{{ url_for('index') }}" class="text-wrap">
+          <img src="{{ url_for('static', filename='images/logos/aituc_logo.png') }}" alt="AITU Logo" />
+        </a>
+      </div>
+      <nav class="sidebar-nav scroll-sidebar" data-simplebar="">
+        <ul id="sidebarnav">
+          <li class="sidebar-item"><a class="sidebar-link" href="{{ url_for('index') }}">Главная</a></li>
+          <li class="sidebar-item"><a class="sidebar-link" href="{{ url_for('classrooms') }}">Аудитории</a></li>
+          <li class="sidebar-item"><a class="sidebar-link" href="{{ url_for('employees') }}">Сотрудники</a></li>
+          <li class="sidebar-item"><a class="sidebar-link" href="{{ url_for('students') }}">Студенты</a></li>
+          <li class="sidebar-item"><a class="sidebar-link" href="{{ url_for('groups') }}">Группы</a></li>
+          <li class="sidebar-item"><a class="sidebar-link" href="{{ url_for('graph') }}">График</a></li>
+          <li class="sidebar-item"><a class="sidebar-link" href="{{ url_for('attendance') }}">Посещаемость</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="body-wrapper">
+      <header class="app-header">
+        <nav class="navbar navbar-expand-lg navbar-light">
+          <div class="container-fluid d-flex justify-content-end">
+            {% block header_actions %}{% endblock %}
+          </div>
+        </nav>
+      </header>
+
+      <div class="container-fluid">
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+
+</html>

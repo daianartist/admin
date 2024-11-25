@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}Детали группы{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+
+  
+
+  .group-details-container {
+    margin: 20px auto;
+    background-color: #ffffff;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    max-width: 800px;
+  }
+
+  .group-details-header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .group-details-header h2 {
+    font-size: 24px;
+    color: #333;
+  }
+
+  .group-info {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+  }
+
+  .group-info p {
+    margin: 5px 0;
+    font-size: 16px;
+  }
+
+  .student-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .student-list li {
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .student-list li:hover {
+    background-color: #f1f1f1;
+  }
+
+  .student-name {
+    font-size: 16px;
+    color: #333;
+    flex-grow: 1;
+  }
+
+  .student-actions a {
+    margin-left: 10px;
+    color: #007bff;
+    text-decoration: none;
+    font-size: 14px;
+  }
+
+  .student-actions a:hover {
+    text-decoration: underline;
+  }
+
+  .back-button {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 10px 20px;
+    background-color: #007bff;
+    color: #ffffff;
+    text-decoration: none;
+    border-radius: 5px;
+    font-size: 16px;
+    text-align: center;
+  }
+
+  .back-button:hover {
+    background-color: #0056b3;
+  }
+
+  .chart-container {
+    margin-top: 20px;
+    background-color: #ffffff;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: center;
+  }
+
+  #groupChart {
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  .export-buttons {
+    margin-top: 20px;
+    text-align: center;
+  }
+
+  .export-buttons button {
+    padding: 10px 20px;
+    margin: 5px;
+    border: none;
+    color: white;
+    cursor: pointer;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="group-details-container">
+    <div class="group-details-header">
+      <h2 id="groupName">Группа: {{ group.group_name }}</h2>
+    </div>
+
+    <div class="group-info">
+      <p><strong>Куратор:</strong> {{ group.curator_last_name }} {{ group.curator_first_name }}</p>
+      <p><strong>Специальность:</strong> {{ group.specialty_name }}</p>
+      <p><strong>Язык обучения:</strong> {{ group.language_name }}</p>
+    </div>
+
+    <h3>Список студентов:</h3>
+    <ul id="studentList" class="student-list">
+      {% for student in students %}
+      <li>
+        <span class="student-name">{{ student.student_first_name }} {{ student.student_last_name }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <div class="chart-container">
+      <h3>Статистика группы</h3>
+      <canvas id="groupChart"></canvas>
+    </div>
+
+    <div class="export-buttons">
+      <button class="btn btn-success" onclick="exportToExcel()">Экспорт в Excel</button>
+      <button class="btn btn-primary" onclick="exportToCSV()">Экспорт в CSV</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const groupData = {
+    '{{group["group_name"]}}': {
+      curator: '{{group["curator_last_name"]}} {{group["curator_first_name"]}}',
+      specialty: '{{group["specialty_name"]}}',
+      language: '{{group["language_name"]}}',
+      students: [
+            {% for student in students %}
+          {
+            name: '{{ student["student_first_name"] }} {{student["student_last_name"]}}',
+            id: '{{ student["student_id"] }}'
+          }{% if not loop.last %},{% endif %}
+          {% endfor %}
+      ],
+      stats: { attendance: 90, assignments: 85, exams: 88 }
+    }
+  };
+  // Получение данных группы из URL и отображение
+// Получаем параметры из URL
+const groupName = "{{group['group_name']}}";
+
+// Проверяем, что параметр группы корректен и есть в данных
+if (groupName && groupData[groupName]) {
+const group = groupData[groupName];  // Загружаем данные конкретной группы
+document.getElementById('groupName').textContent = `Группа: ${groupName}`;
+document.getElementById('curator').textContent = group.curator;
+document.getElementById('specialty').textContent = group.specialty;
+document.getElementById('language').textContent = group.language;
+
+// Обновляем список студентов
+const studentList = document.getElementById('studentList');
+studentList.innerHTML = ''; // Очищаем старые данные
+group.students.forEach(student => {
+  const li = document.createElement('li');
+  li.innerHTML = `<span class="student-name">${student.name}</span>`;
+  studentList.appendChild(li);
+});
+
+// Обновляем инициализацию графика
+const ctx = document.getElementById('groupChart').getContext('2d');
+if (ctx.chart) {
+  ctx.chart.destroy(); // Уничтожаем предыдущий график, если он уже существует
+}
+ctx.chart = new Chart(ctx, {
+  type: 'doughnut',
+  data: {
+    labels: ['Посещаемость', 'Домашние задания', 'Экзамены'],
+    datasets: [{
+      data: [group.stats.attendance, group.stats.assignments, group.stats.exams],
+      backgroundColor: ['#4CAF50', '#FFC107', '#2196F3']
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: {
+        position: 'top',
+      },
+      tooltip: {
+        enabled: true
+      }
+    }
+  }
+});
+} else {
+console.error("Данные для группы не найдены или параметр отсутствует в URL.");
+}
+
+
+  function exportToCSV() {
+    alert('Данные экспортированы в CSV');
+  }
+
+  function exportToExcel() {
+    alert('Данные экспортированы в Excel');
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
+{% endblock %}

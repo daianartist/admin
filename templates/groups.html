@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}Группы{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('add_group') }}" class="btn btn-success me-2">Добавить</a>
+  <a href="javascript:void(0)" class="btn btn-danger" onclick="deleteSelectedGroups()">Удалить</a>
+{% endblock %}
+
+{% block content %}
+<h2>Группы</h2>
+
+<div class="action-buttons mb-3">
+  <input type="text" id="filterName" class="form-control me-2" placeholder="Поиск по названию группы" style="width: 250px; display: inline-block;">
+  <select id="filterCourse" class="form-select me-2" style="width: 200px; display: inline-block;">
+    <option value="">Фильтр по курсу</option>
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+  </select>
+  <select id="filterSpecialty" class="form-select me-2" style="width: 250px; display: inline-block;">
+    <option value="">Фильтр по специальности</option>
+    {% for specialty in specialties %}
+    <option value="{{ specialty }}">{{ specialty }}</option>
+    {% endfor %}
+  </select>
+  <a href="javascript:void(0)" onclick="applyFilters()" class="btn btn-add">Применить фильтры</a>
+  <a href="javascript:void(0)" onclick="resetFilters()" class="btn btn-delete">Сбросить</a>
+</div>
+
+<div class="table-container">
+  <table id="groupsTable">
+    <thead>
+      <tr>
+        <th></th>
+        <th>#</th>
+        <th>Наименование</th>
+        <th>Курс</th>
+        <th>Специальность</th>
+        <th>Куратор</th>
+        <th>Язык обучения</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Данные будут добавлены скриптом -->
+    </tbody>
+  </table>
+</div>
+
+<!-- Модальное окно для удаления -->
+<!-- Модальное окно для удаления -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content">
+      <div class="modal-header justify-content-center">
+        <h5 class="modal-title text-center" id="deleteModalLabel">Удалить группы</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <h5 class="modal-title text-center" id="deleteGroup">Вы уверены, что хотите удалить выбранные группы?</h5>
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-danger" id="confirmDeleteButton">Удалить</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const data = {{ groups_json | safe }};
+  const baseGroupDetailsUrl = "{{ url_for('group_details', group_id=0) }}".replace("0", "");
+
+  function renderTable(filteredData = data) {
+    const tbody = document.querySelector('#groupsTable tbody');
+    tbody.innerHTML = '';
+    filteredData.forEach((group, index) => {
+      const groupDetailsUrl = `${baseGroupDetailsUrl}${group.group_id}`;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input class="form-check-input group-checkbox" type="checkbox" name="select" value="${group.group_id}" data-id="${group.group_id}"></td>
+        <td>${index + 1}</td>
+        <td>${group.group_name}</td>
+        <td>${group.course}</td>
+        <td>${group.speciality_id}</td>
+        <td>${group.curator_first_name || ''} ${group.curator_last_name || ''}</td>
+        <td>${group.language_id}</td>
+        <td><a href="${groupDetailsUrl}" class="btn btn-outline-primary btn-sm">Подробнее</a></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function applyFilters() {
+    const nameFilter = document.getElementById('filterName').value.toLowerCase();
+    const courseFilter = document.getElementById('filterCourse').value;
+    const specialtyFilter = document.getElementById('filterSpecialty').value;
+
+    const filteredData = data.filter(group => {
+      return (
+        (nameFilter === '' || group.group_name.toLowerCase().includes(nameFilter)) &&
+        (courseFilter === '' || group.course == courseFilter) &&
+        (specialtyFilter === '' || group.speciality_id.includes(specialtyFilter))
+      );
+    });
+
+    renderTable(filteredData);
+  }
+
+  function resetFilters() {
+    document.getElementById('filterName').value = '';
+    document.getElementById('filterCourse').value = '';
+    document.getElementById('filterSpecialty').value = '';
+    renderTable();
+  }
+// Функция для удаления выбранных групп
+function deleteSelectedGroups() {
+  const selectedCheckboxes = document.querySelectorAll('.group-checkbox:checked');
+  const groupIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+  const groupNames = Array.from(selectedCheckboxes).map(cb => cb.closest('tr').children[2].textContent);
+
+  if (groupIds.length === 0) {
+    alert('Пожалуйста, выберите хотя бы одну группу для удаления.');
+    return;
+  }
+
+  // Обновление текста в модальном окне
+  document.getElementById('deleteGroup').textContent = `Вы уверены, что хотите удалить следующие группы?\n${groupNames.join(', ')}`;
+
+  // Добавление обработчика для подтверждения удаления
+  document.getElementById('confirmDeleteButton').onclick = function() {
+    fetch("{{ url_for('delete_groups') }}", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json', // Если вы используете CSRF защиту
+      },
+      body: JSON.stringify({ ids: groupIds })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        alert('Группы успешно удалены.');
+        // Удаляем удалённые группы из локальных данных
+        data.ids.forEach(id => {
+          const row = document.querySelector(`.group-checkbox[value="${id}"]`).closest('tr');
+          row.remove();
+        });
+        // Обновляем счётчик "Все выбраны"
+        document.getElementById('selectAll').checked = false;
+      } else {
+        alert('Ошибка при удалении групп: ' + data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Ошибка:', error);
+    });
+  };
+
+  // Показываем модальное окно
+  const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+  deleteModal.show();
+}
+
+  renderTable();
+</script>
+
+{% endblock %}

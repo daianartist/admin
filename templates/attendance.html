@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% block title %}Отчёт по посещаемости{% endblock %}
+
+{% block extra_head %}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+  
+.chart-container {
+  display: flex;
+  justify-content: space-evenly;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.chart {
+  width: 45%;
+  min-width: 300px;
+  height: 300px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.table-container {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 1.5rem;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.brand-logo img {
+  max-width: 150px;
+  margin: 20px 0;
+  padding: 0;
+  display: inline-block;
+}
+
+.export-buttons button {
+  padding: 10px 20px;
+  margin: 5px;
+  border: none;
+  color: white;
+  cursor: pointer;
+}
+
+.btn-success {
+  background-color: #28a745;
+}
+
+.btn-primary {
+  background-color: #007bff;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  max-width: 600px;
+  height: 400px;
+  margin: 20px auto;
+}
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <h2>Отчёт по посещаемости</h2>
+
+  <!-- Диаграммы -->
+  <div class="chart-container">
+    <div class="chart">
+      <canvas id="attendancePieChart"></canvas>
+    </div>
+    <div class="chart">
+      <canvas id="attendanceBarChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Таблица посещаемости -->
+  <div class="table-container">
+    <table class="table table-bordered" id="attendanceTable">
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Группа</th>
+          <th>Преподаватель</th>
+          <th>Время</th>
+          <th>Присутствующие</th>
+          <th>Отсутствующие</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for record in attendance_report %}
+        <tr>
+          <td>{{ record.date }}</td>
+          <td>{{ record.group_name }}</td>
+          <td>{{ record.teacher }}</td>
+          <td>{{ record.time }}</td>
+          <td>{{ record.present }}</td>
+          <td>{{ record.absent }}</td>
+          <td>
+            <a href="{{ url_for('attendance_details', lessonid=record['lessonid']) }}" class="btn btn-outline-primary btn-sm">Подробнее</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Кнопки экспорта -->
+  <div class="export-buttons mt-3">
+    <button class="btn btn-success">Экспорт в Excel</button>
+    <button class="btn btn-primary">Экспорт в CSV</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <script>
+    // Данные для диаграмм
+    const pieData = {{ pie_data | tojson }};
+    const barData = {{ bar_data | tojson }};
+
+    // Круговая диаграмма
+    const ctxPie = document.getElementById('attendancePieChart').getContext('2d');
+    new Chart(ctxPie, {
+      type: 'pie',
+      data: {
+        labels: ['Присутствующие', 'Отсутствующие'],
+        datasets: [{
+          data: [pieData.present, pieData.absent],
+          backgroundColor: ['#4CAF50', '#FF5252'],
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'top' },
+        },
+      },
+    });
+
+    // Столбчатая диаграмма
+    const ctxBar = document.getElementById('attendanceBarChart').getContext('2d');
+    new Chart(ctxBar, {
+      type: 'bar',
+      data: {
+        labels: barData.groups,
+        datasets: [{
+          label: 'Присутствующие',
+          data: barData.present,
+          backgroundColor: '#4CAF50',
+        }, {
+          label: 'Отсутствующие',
+          data: barData.absent,
+          backgroundColor: '#FF5252',
+        }],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'top' },
+        },
+        scales: {
+          x: { title: { display: true, text: 'Группы' } },
+          y: { title: { display: true, text: 'Количество студентов' } },
+        },
+      },
+    });
+
+    // Функция экспорта в CSV с BOM для поддержки русских символов
+    function exportToCSV() {
+      const table = document.getElementById('attendanceTable');
+      const rows = Array.from(table.querySelectorAll('tr'));
+      let csvContent = '\uFEFF'; // Добавляем BOM для UTF-8
+
+      csvContent += rows.map(row => {
+        const cols = Array.from(row.querySelectorAll('th, td'));
+        return cols.map(col => {
+          let text = col.textContent.trim().replace(/"/g, '""'); // Экранируем кавычки и убираем лишние пробелы
+          return `${text}`;
+        }).join(',');
+      }).join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      if (link.download !== undefined) { // Проверка поддержки атрибута download
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'attendance_report.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }
+
+    function exportToExcel() {
+      const table = document.getElementById('attendanceTable');
+      const workbook = XLSX.utils.table_to_book(table, { sheet: "Отчёт по посещаемости" });
+    
+      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'binary' });
+    
+      function s2ab(s) {
+        const buf = new ArrayBuffer(s.length);
+        const view = new Uint8Array(buf);
+        for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+        return buf;
+      }
+    
+      const blob = new Blob([s2ab(wbout)], { type: "application/octet-stream" });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'attendance_report.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    // Связывание кнопок с функциями экспорта
+    document.querySelector('.btn-success').addEventListener('click', exportToExcel);
+    document.querySelector('.btn-primary').addEventListener('click', exportToCSV);
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.7/dist/umd/popper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.min.js"></script>
+{% endblock %}

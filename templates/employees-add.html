@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Добавить сотрудника{% endblock %}
+
+{% block extra_head %}
+<!-- Подключите jQuery и jQuery Input Mask -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.7/jquery.inputmask.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <h2>Добавить сотрудника</h2>
+  
+<form action="{{ url_for('add_employee') }}" method="POST">
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label for="firstName" class="form-label">Имя</label>
+      <input type="text" class="form-control" id="firstName" name="firstName" required>
+    </div>
+    <div class="col-md-6 mb-3">
+      <label for="phone" class="form-label">Номер телефона</label>
+      <input type="text" class="form-control" id="phone" name="phone" required>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label for="lastName" class="form-label">Фамилия</label>
+      <input type="text" class="form-control" id="lastName" name="lastName" required>
+    </div>
+    <div class="col-md-6 mb-3">
+      <label for="password" class="form-label">Пароль</label>
+      <input type="password" class="form-control" id="password" name="password" required>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label for="patronymic" class="form-label">Отчество</label>
+      <input type="text" class="form-control" id="patronymic" name="patronymic">
+    </div>
+    <div class="col-md-6 mb-3">
+      <label for="uin" class="form-label">ИИН</label>
+      <input type="text" class="form-control" id="uin" name="uin" required>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label for="role" class="form-label">Роль</label>
+      <select id="role" name="role" class="form-select" required>
+        {% for role in roles %}
+        <option value="{{ role['role_name'] }}">{{ role['role_name'] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-6 mb-3">
+      <label for="subject" class="form-label">Предмет</label>
+      <select id="subject" name="subject" class="form-select" required>
+        {% for subject in subjects %}
+        <option value="{{ subject['subject_id'] }}">{{ subject['subject_name'] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-6 mb-3">
+      <label for="groups" class="form-label">Группы</label>
+      <select id="groups" name="groups" class="form-select" multiple>
+        {% for group in groups %}
+        <option value="{{ group['group_id'] }}">{{ group['group_name'] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <button type="submit" class="btn btn-primary">Добавить</button>
+</form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Маска для ввода ИИН
+  $(document).ready(function(){
+    $('#uin').inputmask("999999999999");
+  });
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.7/jquery.inputmask.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.7/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.min.js"></script>
+{% endblock %}

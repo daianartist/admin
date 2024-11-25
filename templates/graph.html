@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}График{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('add_graph') }}" class="btn btn-success me-2">Добавить</a>
+<a href="#" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">Удалить</a>
+{% endblock %}
+
+{% block content %}
+<h2>График</h2>
+<!-- Модальное окно удаления -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content">
+      <div class="modal-header justify-content-center">
+        <h5 class="modal-title text-center" id="deleteModalLabel">Удаление графиков</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p>Вы уверены, что хотите удалить выбранные графики?</p>
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-danger" onclick="deleteSelected()">Удалить</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function deleteSelected() {
+    const selectedIds = Array.from(document.querySelectorAll('#scheduleTable tbody .form-check-input:checked'))
+      .map(checkbox => checkbox.value);
+
+    if (selectedIds.length === 0) {
+      alert('Выберите хотя бы один график для удаления.');
+      return;
+    }
+
+    fetch('/delete_graphs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ ids: selectedIds })
+    })
+    .then(response => {
+      if (response.ok) {
+        alert('Выбранные графики успешно удалены.');
+        location.reload(); // Перезагрузка страницы
+      } else {
+        alert('Произошла ошибка при удалении.');
+      }
+    })
+    .catch(error => {
+      console.error('Ошибка:', error);
+      alert('Произошла ошибка при удалении.');
+    });
+  }
+</script>
+
+<!-- Фильтры -->
+<div class=" action-buttons mb-3">
+  <select id="filterCourse" class="form-select me-2" style="width: 200px; display: inline-block;">
+    <option value="">Фильтр по курсу</option>
+    <option value="1">1 курс</option>
+    <option value="2">2 курс</option>
+    <option value="3">3 курс</option>
+  </select>
+  <a href="javascript:void(0)" onclick="applyFilters()" class="btn btn-add">Применить фильтры</a>
+  <a href="javascript:void(0)" onclick="resetFilters()" class="btn btn-delete">Сбросить</a>
+</div>
+
+<!-- Таблица -->
+<div class="table-container">
+  <table id="scheduleTable">
+    <thead>
+      <tr>
+        <th></th>
+        <th>Курс</th>
+        <th>Наименование</th>
+        <th>Дата начала</th>
+        <th>Дата окончания</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for schedule in graphs %}
+      <tr data-course="{{ schedule.course }}">
+        <td><input class="form-check-input" type="checkbox" value="{{ schedule.graph_id }}"></td>
+        <td>{{ schedule.course }}</td>
+        <td>{{ schedule.graph_name }}</td>
+        <td>{{ schedule.start_date }}</td>
+        <td>{{ schedule.end_date }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function applyFilters() {
+    const filterValue = document.getElementById('filterCourse').value;
+    const rows = document.querySelectorAll('#scheduleTable tbody tr');
+
+    rows.forEach(row => {
+      const course = row.getAttribute('data-course');
+      if (filterValue === '' || course === filterValue) {
+        row.style.display = ''; // Показываем строку
+      } else {
+        row.style.display = 'none'; // Скрываем строку
+      }
+    });
+  }
+
+  function resetFilters() {
+    document.getElementById('filterCourse').value = '';
+    const rows = document.querySelectorAll('#scheduleTable tbody tr');
+    rows.forEach(row => {
+      row.style.display = ''; // Показываем все строки
+    });
+  }
+
+  document.getElementById('selectAll').addEventListener('change', function () {
+    const checkboxes = document.querySelectorAll('#scheduleTable tbody .form-check-input');
+    checkboxes.forEach(checkbox => {
+      checkbox.checked = this.checked;
+    });
+  });
+</script>
+{% endblock %}

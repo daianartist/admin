@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Добавить аудиторию{% endblock %}
+
+{% block extra_head %}
+  <!-- Подключите jQuery и jQuery Input Mask -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.7/jquery.inputmask.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <h2>Добавить аудиторию</h2>
+  <div class="card">
+    <div class="card-body">
+      <form method="POST" action="{{ url_for('addClassroom') }}">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="classroom" class="form-label">Номер</label>
+            <input type="text" class="form-control" id="classroom" name="classroom">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label for="role" class="form-label">Тип</label>
+            <select id="role" name="role" class="form-select">
+              <option value="">Выберите тип</option>
+              {% for type in audience_types %}
+              <option value="{{ type['audience_type_id'] }}">{{ type['audience_type_name'] }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="addButton">Добавить</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.7/jquery.inputmask.min.js"></script>
+  <script src="../assets/libs/jquery/dist/jquery.min.js"></script>
+  <script src="../assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../assets/libs/simplebar/dist/simplebar.js"></script>
+  <script src="../assets/js/sidebarmenu.js"></script>
+  <script src="../assets/js/app.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
+</script>
+{% endblock %}

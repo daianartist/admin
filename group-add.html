@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Group add</title>
+  <link rel="shortcut icon" type="image/png" href="../assets/images/logos/aituc.jpg" />
+  <link rel="stylesheet" href="../assets/css/styles.min.css" />
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.7/jquery.inputmask.min.js"></script>
+  <style>
+    .table-responsive {
+      max-height: 350px; 
+      overflow-y: auto;
+    }
+    .scrolldown::-webkit-scrollbar {
+      width: 8px;
+    }
+    .scrolldown::-webkit-scrollbar-thumb {
+      background-color: #cccccc;
+      border-radius: 5px;
+    }
+    .scrolldown::-webkit-scrollbar-thumb:hover {
+      background-color: #888888;
+    }
+  </style>
+</head>
+
+<body>
+  <!--  Body Wrapper -->
+  <div class="page-wrapper" id="main-wrapper" data-layout="vertical" data-navbarbg="skin6" data-sidebartype="full"
+    data-sidebar-position="fixed" data-header-position="fixed">
+    <!-- Sidebar Start -->
+    <aside class="left-sidebar">
+      <!-- Sidebar scroll-->
+      <div>
+        <div class="brand-logo">
+          <a href="./index.html">
+            <img src="../assets/images/logos/aituc_logo.png" alt="AITU Logo">
+          </a>
+        </div>
+        <!-- Sidebar navigation-->
+        <nav class="sidebar-nav scroll-sidebar" data-simplebar="">
+          <ul id="sidebarnav">
+            <li class="nav-small-cap">
+              <i class="ti ti-dots nav-small-cap-icon fs-6"></i>
+              <span class="hide-menu">Группы</span>
+            </li>
+            <li class="sidebar-item">
+              <a class="sidebar-link" href="./groups.html" aria-expanded="false">
+                <span>
+                  <iconify-icon icon="material-symbols:arrow-back" class="fs-6"></iconify-icon>
+                </span>
+                <span class="hide-menu">Назад</span>
+              </a>
+            </li>
+          </ul>
+        </nav>
+        <!-- End Sidebar navigation -->
+      </div>
+      <!-- End Sidebar scroll-->
+    </aside>
+    <!--  Sidebar End -->
+    <!--  Main wrapper -->
+    <div class="body-wrapper">
+      
+      <!--  Header End -->
+      <div class="container-fluid">
+        <!-- Единая форма для студентов и группы -->
+        <div class="card">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <h5 class="card-title">Список студентов</h5>
+              <input type="text" id="filterName" class="form-control" placeholder="Поиск" style="width: 250px;">
+            </div>
+            <div class="table-responsive scrolldown mb-4">
+              <table class="table text-nowrap align-middle mb-0">
+                <thead>
+                  <tr class="border-2 border-bottom border-primary border-0">
+                    <th scope="col" class="ps-0" style="width: 30px;"></th>
+                    <th scope="col">Имя</th>
+                    <th scope="col">Фамилия</th>
+                    <th scope="col">Отчество</th>
+                    <th scope="col">Дата рождения</th>
+                    <th scope="col">ИИН</th>
+                  </tr>
+                </thead>
+                <tbody id="studentsTable">
+                  <tr>
+                    <th scope="row" class="ps-0 fw-medium">
+                      <input class="form-check-input student-checkbox" type="checkbox" name="select">
+                    </th>
+                    <td>Дайана</td>
+                    <td>Арапбекова</td>
+                    <td>Замировна</td>
+                    <td>17.07.2005</td>
+                    <td>050717643940</td>
+                  </tr>
+                  <tr>
+                    <th scope="row" class="ps-0 fw-medium">
+                      <input class="form-check-input student-checkbox" type="checkbox" name="select">
+                    </th>
+                    <td>Айдос</td>
+                    <td>Айдынов</td>
+                    <td>Айбекович</td>
+                    <td>12.03.2004</td>
+                    <td>040312643940</td>
+                  </tr>
+                  <tr>
+                    <th scope="row" class="ps-0 fw-medium">
+                      <input class="form-check-input student-checkbox" type="checkbox" name="select">
+                    </th>
+                    <td>Аслан</td>
+                    <td>Олжасов</td>
+                    <td>Ануарович</td>
+                    <td>05.11.2005</td>
+                    <td>051105643940</td>
+                  </tr>
+                  <tr>
+                    <th scope="row" class="ps-0 fw-medium">
+                      <input class="form-check-input student-checkbox" type="checkbox" name="select">
+                    </th>
+                    <td>Айжан</td>
+                    <td>Арманова</td>
+                    <td>Дидаровна</td>
+                    <td>22.08.2006</td>
+                    <td>063133443940</td>
+                  </tr>
+                  <tr>
+                    <th scope="row" class="ps-0 fw-medium">
+                      <input class="form-check-input student-checkbox" type="checkbox" name="select">
+                    </th>
+                    <td>Камила</td>
+                    <td>Асхатова</td>
+                    <td>Наримановна</td>
+                    <td>15.01.2004</td>
+                    <td>041102223940</td>
+                  </tr>
+                  <tr>
+                    <th scope="row" class="ps-0 fw-medium">
+                      <input class="form-check-input student-checkbox" type="checkbox" name="select">
+                    </th>
+                    <td>Мансур</td>
+                    <td>Алинурович</td>
+                    <td>Мейиржанов</td>
+                    <td>30.09.2005</td>
+                    <td>051105643320</td>
+                  </tr>
+                  <tr>
+                    <th scope="row" class="ps-0 fw-medium">
+                      <input class="form-check-input student-checkbox" type="checkbox" name="select">
+                    </th>
+                    <td>Ильяс</td>
+                    <td>Абильмансуров</td>
+                    <td>Нурсултанович</td>
+                    <td>11.02.2006</td>
+                    <td>061105643940</td>
+                  </tr>
+                </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+        
+        <div class="alert alert-warning" role="alert">
+          Перед записью информации о группе убедитесь, что выбрали всех студентов этой группы *
+        </div>
+      <div class="card mt-4">
+      <div class="card-body">
+      <div class="d-flex justify-content-between">
+        <h5 class="card-title fw-semibold mb-4">Группа</h5>
+
+        <div></div>
+        <div>
+          <span id="selectedCount" class="badge bg-primary">Количество выбранных студентов: 0</span>
+        </div>
+      </div>
+                <div class="card">
+                    <div class="card-body">
+                        <form>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="GroupNumber" class="form-label">Наименование</label>
+                                    <input type="text" class="form-control" id="GroupNumber" aria-describedby="">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="language" class="form-label">Язык обучения</label>
+                                    <select id="language" class="form-select">
+                                        <option></option>
+                                        <option> Казахский</option>
+                                        <option> Русский</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="specialty" class="form-label">Специальность</label>
+                                    <select id="specialty" class="form-select">
+                                        <option></option>
+                                        <option> Программное обеспечение </option>
+                                        <option> Вычислительная техника </option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="kuratorName" class="form-label">Куратор</label>
+                                    <select id="kuratorName" class="form-select">
+                                        <option></option>
+                                        <option> Имя Фамилия1 </option>
+                                        <option> Имя Фамилия2 </option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="addButton">Добавить</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    </div>
+  </div>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.7/jquery.inputmask.min.js"></script>
+  <script src="../assets/libs/jquery/dist/jquery.min.js"></script>
+  <script src="../assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../assets/libs/simplebar/dist/simplebar.js"></script>
+  <script src="../assets/js/sidebarmenu.js"></script>
+  <script src="../assets/js/app.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
+  <script>
+    $(document).ready(function () {
+      $(document).ready(function () {
+      $("#filterName").on("input", function () {
+        var value = $(this).val().toLowerCase();
+        $("#studentsTable tr").filter(function () {
+          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+        });
+      });
+    });
+    
+      const updateSelectedCount = () => {
+        const count = $(".student-checkbox:checked").length;
+        $("#selectedCount").text(`Выбрано студентов: ${count}`);
+      };
+  
+      $(".student-checkbox").on("change", updateSelectedCount);
+  
+      $("#selectAll").on("change", function () {
+        const isChecked = $(this).prop("checked");
+        $(".student-checkbox").prop("checked", isChecked);
+        updateSelectedCount();
+      });
+    });
+  </script>
+</body>
+
+</html>
+

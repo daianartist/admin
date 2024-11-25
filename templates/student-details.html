@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Детали Студента{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="student-details-container">
+    <div class="student-details-header">
+      <h2 id="studentName">Студент: {{ student.first_name }} {{ student.last_name }}</h2>
+    </div>
+
+    <div class="student-info">
+      <p><strong>Группа:</strong> <span id="group">{{ student.group_names }}</span></p>
+      <p><strong>Номер телефона:</strong> <span id="number">{{ student.phone_number }}</span></p>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editModal">Редактировать</button>
+    </div>
+
+    <!-- Модальное окно для редактирования -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="editModalLabel">Редактирование студента</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <form id="editForm" method="POST" action="{{ url_for('student_details', uin=student.uin) }}">
+              <div class="mb-3">
+                <label for="editGroup" class="form-label">Группа</label>
+                <select multiple class="form-select" id="editGroup" name="group">
+                  {% for group in all_groups %}
+                  <option value="{{ group.group_id }}"
+                    {% if group.group_id in student.group_ids %}
+                      selected
+                    {% endif %}
+                  >{{ group.group_name }}</option>
+                  {% endfor %}
+                </select>
+                <small class="form-text text-muted">Удерживайте Ctrl (Cmd на Mac), чтобы выбрать несколько групп.</small>
+              </div>
+              <div class="mb-3">
+                <label for="editNumber" class="form-label">Номер телефона</label>
+                <input type="text" class="form-control" id="editNumber" name="phone_number" value="{{ student.phone_number }}" required>
+              </div>
+              <button type="submit" class="btn btn-primary">Сохранить</button>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="attendance-table-container">
+      <h3>Опоздания и пропуски</h3>
+      <table class="attendance-table">
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Начало</th>
+            <th>Время отметки</th>
+            <th>Дисциплина</th>
+            <th>Преподаватель</th>
+            <th>Статус</th>
+          </tr>
+        </thead>
+        <tbody id="attendanceTable">
+          {% for record in attendance_records %}
+          <tr>
+            <td>{{ record.date }}</td>
+            <td>{{ record.start_time }}</td>
+            <td>{{ record.marked_time or '—' }}</td>
+            <td>{{ record.subject }}</td>
+            <td>{{ record.teacher }}</td>
+            <td>{{ record.status }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+{% endblock %}

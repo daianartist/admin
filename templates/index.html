@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Главная{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+
+
+  .stats-container {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .card {
+    flex: 1 1 calc(25% - 1rem);
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .chart-container {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .chart {
+    flex: 1 1 calc(45% - 1rem);
+    min-width: 350px;
+    max-width: 500px;
+    height: 350px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+  }
+
+  .notification {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .brand-logo img {
+    max-width: 150px; 
+    margin: 20px auto;
+    display: block;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <h2>Добро пожаловать в AC admin</h2>
+
+  <!-- Ключевая статистика -->
+  <div class="stats-container">
+    <div class="card">
+      <h5>Преподаватели</h5>
+      <p>Всего: <strong>{{ total_teachers }}</strong></p>
+    </div>
+    <div class="card">
+      <h5>Студенты</h5>
+      <p>Всего: <strong>{{ total_students }}</strong></p>
+    </div>
+    <div class="card">
+      <h5>Группы</h5>
+      <p>Всего: <strong>{{ total_groups }}</strong></p>
+    </div>
+    <div class="card">
+      <h5>Аудитории</h5>
+      <p>Всего: <strong>{{ total_classrooms }}</strong></p>
+    </div>
+  </div>
+
+  <!-- Графики -->
+  <div class="chart-container">
+    <div class="chart">
+      <canvas id="attendancePieChart"></canvas>
+    </div>
+    <div class="chart">
+      <canvas id="activityBarChart"></canvas>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  <script>
+    // Данные для графиков
+    const attendanceData = {
+      present: {{ attendance_summary.present }},
+      absent: {{ attendance_summary.absent }},
+    };
+
+    const activityData = {
+      labels: ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница'],
+      values: {{ activity_data['values'] | tojson }},
+    };
+    console.log(activityData)
+    // Круговая диаграмма посещаемости
+    const ctxPie = document.getElementById('attendancePieChart').getContext('2d');
+    new Chart(ctxPie, {
+      type: 'pie',
+      data: {
+        labels: ['Присутствующие', 'Отсутствующие'],
+        datasets: [{
+          data: [attendanceData.present, attendanceData.absent],
+          backgroundColor: ['#4CAF50', '#FF5252'],
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'top' },
+        },
+      },
+    });
+
+    // Столбчатая диаграмма активности
+    const ctxBar = document.getElementById('activityBarChart').getContext('2d');
+    new Chart(ctxBar, {
+      type: 'bar',
+      data: {
+        labels: activityData.labels,
+        datasets: [{
+          label: 'Активность студентов',
+          data: activityData.values,
+          backgroundColor: '#42A5F5',
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'top' },
+        },
+        scales: {
+          x: { title: { display: true, text: 'Дни недели' } },
+          y: { title: { display: true, text: 'Количество активностей' } },
+        },
+      },
+    });
+  </script>
+
+</script>
+{% endblock %}

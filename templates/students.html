@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Студенты{% endblock %}
+
+{% block header_actions %}
+  <a href="{{ url_for('add_student') }}" class="btn btn-success me-2">Добавить</a>
+  <a href="#" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">Удалить</a>
+{% endblock %}
+
+{% block content %}
+<h2>Студенты</h2>
+
+<div class="action-buttons mb-3">
+  <div class="filters" style="display:inline-flex">
+    <input type="text" id="searchName" placeholder="Поиск по имени" class="form-control me-2" style="width: 200px;"><div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-md">
+        <div class="modal-content">
+          <div class="modal-header justify-content-center">
+            <h5 class="modal-title text-center" id="deleteModalLabel">Удаленить сотрудника</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body text-center">
+            <h5 class="modal-title text-center" id="deleteGroup">Вы уверены, что хотите удалить выбранных?</h5>
+          </div>
+          <div class="modal-footer justify-content-center">
+            <button id="deleteSelectedStudents" class="btn btn-danger">Удалить выбранных</button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <select id="filterCourse" class="form-select me-2" style="width: 150px;">
+      <option value="">Курс</option>
+      <option value="1">1</option>
+      <option value="2">2</option>
+      <option value="3">3</option>
+    </select>
+    <select id="filterGroup" class="form-select me-2" style="width: 150px;">
+      <option value="">Группа</option>
+      {% for group in groups %}
+      <option value="{{ group.group_name }}">{{ group.group_name }}</option>
+      {% endfor %}
+    </select>
+    <a href="javascript:void(0)" onclick="applyFilters()" class="btn btn-add">Применить фильтры</a>
+    <a href="javascript:void(0)" onclick="resetFilters()" class="btn btn-delete">Сбросить</a>
+  </div>
+  <a href="#" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#pdfModal">Экспорт Excel</a>
+</div>
+
+<div class="table-container">
+  <table id="studentsTable">
+    <thead>
+      <tr>
+        <th></th>
+        <th>#</th>
+        <th>Имя</th>
+        <th>Фамилия</th>
+        <th>Отчество</th>
+        <th>ИИН</th>
+        <th>Курс</th>
+        <th>Группа</th>
+        <th>Опоздания</th>
+        <th>Пропущенные занятия</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- Данные будут добавлены скриптом -->
+    </tbody>
+  </table>
+</div>
+
+<!-- Модальное окно для удаления -->
+<!-- ... код модального окна ... -->
+<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content">
+      <div class="modal-header justify-content-center">
+        <h5 class="modal-title" id="pdfModalLabel">Скачать отчет по посещаемости</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <button type="button" class="btn btn-dark me-2">Скачать выбранные записи</button>
+        <button type="button" class="btn btn-secondary">Скачать все записи</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  document.getElementById('deleteSelectedStudents').addEventListener('click', () => {
+    const selectedStudentIds = Array.from(
+      document.querySelectorAll('input[name="select"]:checked')
+    ).map(checkbox => checkbox.dataset.id);
+  
+    if (selectedStudentIds.length === 0) {
+      alert('Выберите хотя бы одного студента для удаления.');
+      return;
+    }
+  
+    if (!confirm('Вы уверены, что хотите удалить выбранных студентов?')) {
+      return;
+    }
+  
+    fetch('/delete_students', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ids: selectedStudentIds }),
+    })
+      .then(response => {
+        if (response.ok) {
+          alert('Студенты успешно удалены.');
+          location.reload(); // Перезагрузка страницы после удаления
+        } else {
+          alert('Ошибка при удалении студентов.');
+        }
+      })
+      .catch(error => {
+        console.error('Ошибка:', error);
+        alert('Ошибка при удалении студентов.');
+      });
+  });
+  
+</script>
+<script>
+  const students = {{ students_json | safe }};
+  console.log(students)
+  function renderTable(filterCourse = '', filterGroup = '', searchName = '') {
+    const tbody = document.querySelector('#studentsTable tbody');
+    tbody.innerHTML = '';
+
+    const filteredData = students.filter(student =>
+      (!filterCourse || student.course === filterCourse) &&
+      (!filterGroup || student.group_name === filterGroup) &&
+      (!searchName || student.first_name.toLowerCase().includes(searchName.toLowerCase()))
+    );
+
+    filteredData.forEach((student, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input class="form-check-input" type="checkbox" name="select" data-id="${student.uin}" value="${student.uin}"></td>
+        <td>${index + 1}</td>
+        <td>${student.first_name}</td>
+        <td>${student.last_name}</td>
+        <td>${student.patronymic}</td>
+        <td>${student.uin}</td>
+        <td>${student.course || '-'}</td>
+        <td>${student.group_names || '-'}</td>
+        <td>${student.lateness}</td>
+        <td>${student.missed_classes}</td>
+        <td><a href="{{ url_for('student_details', uin='') }}${student.uin}" class="btn btn-outline-primary btn-sm">Подробнее</a></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  renderTable();
+
+  function applyFilters() {
+    const filterCourse = document.getElementById('filterCourse').value;
+    const filterGroup = document.getElementById('filterGroup').value;
+    const searchName = document.getElementById('searchName').value;
+    renderTable(filterCourse, filterGroup, searchName);
+  }
+
+  function resetFilters() {
+    document.getElementById('filterCourse').value = '';
+    document.getElementById('filterGroup').value = '';
+    document.getElementById('searchName').value = '';
+    renderTable();
+  }
+</script>
+{% endblock %}

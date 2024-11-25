@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Добавить Студента{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <h5 class="card-title fw-semibold mb-4">Добавить Студента</h5>
+  <div class="card">
+    <div class="card-body">
+      <form action="{{ url_for('add_student') }}" method="POST">
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="firstName" class="form-label">Имя</label>
+            <input type="text" class="form-control" id="firstName" name="firstName" required>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label for="birthday" class="form-label">Дата рождения</label>
+            <input type="date" class="form-control" id="birthday" name="birthday" required>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="lastName" class="form-label">Фамилия</label>
+            <input type="text" class="form-control" id="lastName" name="lastName" required>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label for="phone" class="form-label">Номер телефона</label>
+            <input type="text" class="form-control" id="phone" name="phone" required placeholder="+7 (___) ___-___-__">
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="patronymic" class="form-label">Отчество</label>
+            <input type="text" class="form-control" id="patronymic" name="patronymic" required>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label for="password" class="form-label">Пароль</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label for="uin" class="form-label">ИИН</label>
+            <input type="text" class="form-control" id="uin" name="uin" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="addButton">Добавить</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.7/jquery.inputmask.min.js"></script>
+  <script src="../assets/libs/jquery/dist/jquery.min.js"></script>
+  <script src="../assets/libs/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../assets/libs/simplebar/dist/simplebar.js"></script>
+  <script src="../assets/js/sidebarmenu.js"></script>
+  <script src="../assets/js/app.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/iconify-icon@1.0.8/dist/iconify-icon.min.js"></script>
+  <script>
+    $(document).ready(function () {
+      $(document).ready(function () {
+      $("#filterName").on("input", function () {
+        var value = $(this).val().toLowerCase();
+        $("#studentsTable tr").filter(function () {
+          $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+        });
+      });
+    });
+    
+      const updateSelectedCount = () => {
+        const count = $(".student-checkbox:checked").length;
+        $("#selectedCount").text(`Выбрано студентов: ${count}`);
+      };
+  
+      $(".student-checkbox").on("change", updateSelectedCount);
+  
+      $("#selectAll").on("change", function () {
+        const isChecked = $(this).prop("checked");
+        $(".student-checkbox").prop("checked", isChecked);
+        updateSelectedCount();
+      });
+    });
+  </script>
+</script>
+{% endblock %}

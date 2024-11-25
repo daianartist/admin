@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% block title %}Сотрудники{% endblock %}
+
+{% block extra_head %}
+<style>
+  .action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .filters {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+
+</style>
+{% endblock %}
+{%block header_actions%}
+<a href="{{url_for('add_employee')}}" class="btn btn-success me-2">Добавить</a>
+<a href="#" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">Удалить</a>
+{%endblock%}
+{% block content %}
+<div class="container-fluid">
+  <h2>Сотрудники</h2>
+
+  <!-- Фильтры и кнопки -->
+  <div class="action-buttons mb-3">
+    <div class="filters">
+      <input type="text" id="searchName" placeholder="Поиск по имени" class="form-control me-2" style="width: 200px;">
+      <select id="filterSubject" class="form-select me-2" style="width: 200px;">
+        <option value="">Предмет</option>
+        {% for subject in subjects %}
+        <option value="{{ subject['subject_name'] }}">{{ subject['subject_name'] }}</option>
+        {% endfor %}
+      </select>
+      <a href="javascript:void(0)" onclick="applyFilters()" class="btn btn-add">Применить фильтры</a>
+      <a href="javascript:void(0)" onclick="resetFilters()" class="btn btn-delete">Сбросить</a>
+    </div>
+    <a href="#" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#pdfModal">Скачать PDF</a>
+  </div>
+
+  <!-- Таблица -->
+  <div class="table-container">
+    <table id="employeesTable">
+      <thead>
+        <tr>
+          <th></th>
+          <th>#</th>
+          <th>Имя</th>
+          <th>Фамилия</th>
+          <th>Отчество</th>
+          <th>Предмет</th>
+          <th>Куратор</th>
+          <th>Своя группа</th>
+          <th>Опоздания</th>
+          <th>Пропущенные занятия</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Данные добавляются динамически -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Модальные окна -->
+
+
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content">
+      <div class="modal-header justify-content-center">
+        <h5 class="modal-title text-center" id="deleteModalLabel">Удалить сотрудника</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <h5 class="modal-title text-center" id="deleteGroup">Вы уверены, что хотите удалить выбранных?</h5>
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-danger" onclick="deleteSelectedEmployees()">Удалить</button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
+<div class="modal-dialog modal-md">
+<div class="modal-content">
+  <div class="modal-header justify-content-center">
+    <h5 class="modal-title" id="pdfModalLabel">Скачать отчет по сотрудникам</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  </div>
+  <div class="modal-body text-center">
+    <!-- Передаем true для скачивания выбранных записей -->
+    <button type="button" onclick="downloadPDF(true)" class="btn btn-dark me-2">Скачать выбранные записи</button>
+    <!-- Передаем false для скачивания всех отображаемых записей -->
+    <button type="button" onclick="downloadPDF(false)" class="btn btn-secondary">Скачать все записи</button>
+  </div>
+</div>
+</div>
+</div>
+
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const employees = [
+    {% for emp in employees %}
+    {
+      id: {{ emp['user_id'] }},
+      firstName: '{{ emp["first_name"] }}',
+      lastName: '{{ emp["last_name"] }}',
+      middleName: '{{ emp["patronymic"] }}',
+      subject: '{{ emp["subject_name"] }}',
+      curator: '{{ emp["curator"] }}',
+      group: '{{ emp["own_groups"] }}',
+      lateness: {{ emp["lateness"] }},
+      missed: {{ emp["missed_classes"] }}
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  let currentDisplayedEmployees = employees;
+
+  function renderTable(filteredData = employees) {
+    currentDisplayedEmployees = filteredData;
+    const tbody = document.querySelector('#employeesTable tbody');
+    tbody.innerHTML = '';
+    filteredData.forEach((employee, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input class="form-check-input" type="checkbox" name="select" value="${employee.id}"></td>
+        <td>${index + 1}</td>
+        <td>${employee.firstName}</td>
+        <td>${employee.lastName}</td>
+        <td>${employee.middleName}</td>
+        <td>${employee.subject}</td>
+        <td>${employee.curator}</td>
+        <td>${employee.group}</td>
+        <td>${employee.lateness}</td>
+        <td>${employee.missed}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function applyFilters() {
+    const filterSubject = document.getElementById('filterSubject').value.toLowerCase();
+    const searchName = document.getElementById('searchName').value.toLowerCase();
+
+    const filteredData = employees.filter(emp => {
+      return (
+        (filterSubject === '' || emp.subject.toLowerCase().includes(filterSubject)) &&
+        (searchName === '' || emp.firstName.toLowerCase().includes(searchName))
+      );
+    });
+
+    renderTable(filteredData);
+  }
+
+  function resetFilters() {
+    document.getElementById('filterSubject').value = '';
+    document.getElementById('searchName').value = '';
+    renderTable();
+  }
+
+  function getSelectedEmployeeIds() {
+    const checkboxes = document.querySelectorAll('input[name="select"]:checked');
+    return Array.from(checkboxes).map(checkbox => parseInt(checkbox.value, 10));
+  }
+
+  function deleteSelectedEmployees() {
+    const selectedIds = getSelectedEmployeeIds();
+
+    if (selectedIds.length > 0) {
+      fetch("/delete_employees", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids: selectedIds }),
+      })
+      .then(response => {
+        if (response.ok) {
+          location.reload();
+        } else {
+          alert("Ошибка при удалении сотрудников");
+        }
+      });
+    } else {
+      alert("Выберите хотя бы одного сотрудника для удаления.");
+    }
+  }
+
+  function downloadPDF(selectedOnly) {
+    let dataToDownload = [];
+
+    if (selectedOnly) {
+      const selectedIds = getSelectedEmployeeIds();
+      if (selectedIds.length === 0) {
+        alert("Выберите хотя бы одну запись для скачивания.");
+        return;
+      }
+      // Фильтруем сотрудников по выбранным ID
+      dataToDownload = employees.filter(emp => selectedIds.includes(emp.id));
+    } else {
+      // Берем все текущие отображаемые записи
+      dataToDownload = currentDisplayedEmployees;
+    }
+
+    // Генерация PDF с помощью jsPDF
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Заголовки таблицы
+    const headers = [['#', 'Имя', 'Фамилия', 'Отчество', 'Предмет', 'Куратор', 'Своя группа', 'Опоздания', 'Пропущенные занятия']];
+
+    // Данные таблицы
+    const rows = dataToDownload.map((emp, index) => [
+      index + 1,
+      emp.firstName,
+      emp.lastName,
+      emp.middleName,
+      emp.subject,
+      emp.curator,
+      emp.group,
+      emp.lateness,
+      emp.missed
+    ]);
+
+    // Добавляем таблицу в PDF с использованием AutoTable
+    doc.autoTable({
+      head: headers,
+      body: rows,
+      styles: {
+        fontSize: 12
+      },
+      headStyles: {
+        fillColor: [22, 160, 133] // Пример цвета заголовка
+      }
+    });
+
+    // Сохраняем PDF с соответствующим именем файла
+    doc.save(selectedOnly ? 'selected_employees.pdf' : 'all_employees.pdf');
+  }
+
+  renderTable();
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.7/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.0/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+{% endblock %}

@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block title %}Аудитории{% endblock %}
+
+{% block extra_head %}
+<style>
+  .action-buttons {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .filters {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+
+
+</style>
+{% endblock %}
+{% block header_actions%}
+      <a href="{{ url_for('addClassroom') }}" class="btn btn-success me-2">Добавить</a>
+      <a href="#" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#addModal">
+        <span>Удалить</span>
+      </a>
+{%endblock%}
+{% block content %}
+<div class="container-fluid">
+  <h2>Аудитории</h2>
+
+  <!-- Фильтры и кнопки -->
+  <div class="action-buttons mb-3">
+    <div class="filters">
+      <input type="text" id="searchNumber" placeholder="Поиск по номеру" class="form-control me-2" style="width: 200px;">
+      <select id="filterClassType" class="form-select me-2" style="width: 200px;">
+        <option value="">Тип аудитории</option>
+        <option value="Компьютерная">Компьютерная</option>
+        <option value="Лекционная">Лекционная</option>
+      </select>
+      <a href="javascript:void(0)" onclick="applyFilters()" class="btn btn-add">Применить фильтры</a>
+      <a href="javascript:void(0)" onclick="resetFilters()" class="btn btn-delete">Сбросить</a>
+    </div>
+    <a href="#" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#pdfModal">Скачать PDF</a>
+  </div>
+
+  <!-- Таблица -->
+  <div class="table-container">
+    <table id="classroomTable">
+      <thead>
+        <tr>
+          <th></th>
+          <th>#</th>
+          <th>Номер аудитории</th>
+          <th>Тип</th>
+          <th>QR-код</th>
+          <th>Время обновления QR</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Данные добавляются динамически -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Модальные окна -->
+<!-- Модальное окно для удаления -->
+<div class="modal fade" id="pdfModal" tabindex="-1" aria-labelledby="pdfModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content">
+      <div class="modal-header justify-content-center">
+        <h5 class="modal-title" id="pdfModalLabel">Скачать QR код</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <button type="button" class="btn btn-dark me-2" onclick="downloadSelectedPDF()">Скачать выбранные записи</button>
+        <button type="button" class="btn btn-secondary" onclick="downloadAllPDF()">Скачать все записи</button>
+      </div>
+    </div>
+  </div>
+</div>
+ <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-md">
+          <div class="modal-content">
+            <div class="modal-header justify-content-center">
+              <h5 class="modal-title text-center" id="addModalLabel">Удалить выбранные аудитории</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+              <h5 class="modal-title text-center">Вы уверены, что хотите удалить выбранные аудитории?</h5>
+            </div>
+            <div class="modal-footer justify-content-center">
+              <button type="button" class="btn btn-danger" onclick="deleteSelected()">Удалить</button>
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  const classrooms = [
+    {% for class in classrooms %}
+    {
+      id: {{ class['audience_id'] }},
+      number: '{{ class["audience_number"] }}',
+      type: '{{ class["audience_type"] }}',
+      qrCode: 'Активен',
+      updateDateTime: '10.11.24, 10:55'
+    }{% if not loop.last %},{% endif %}
+    {% endfor %}
+  ];
+
+  function applyFilters() {
+    const filterType = document.getElementById('filterClassType').value.trim();
+    const searchNumber = document.getElementById('searchNumber').value.trim().toLowerCase();
+  
+    const filteredData = classrooms.filter(room => {
+      const matchesType = filterType === '' || room.type === filterType;
+      const matchesNumber = searchNumber === '' || room.number.toLowerCase().includes(searchNumber);
+      return matchesType && matchesNumber;
+    });
+  
+    renderTable(filteredData);
+  }
+  
+  function resetFilters() {
+    document.getElementById('filterClassType').value = '';
+    document.getElementById('searchNumber').value = '';
+    renderTable(classrooms); // Отображаем все данные
+  }
+  
+  function renderTable(filteredData = classrooms) {
+    const tbody = document.querySelector('#classroomTable tbody');
+    tbody.innerHTML = '';
+  
+    filteredData.forEach((room,index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td><input class="form-check-input" type="checkbox" name="select" value="${room.id}"></td>
+        <td>${index+1}</td>
+        <td>${room.number}</td>
+        <td>${room.type}</td>
+        <td>${room.qrCode}</td>
+        <td>${room.updateDateTime}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  
+  // Начальная отрисовка таблицы с полными данными
+  renderTable();
+  
+  function getSelectedIds() {
+    const checkboxes = document.querySelectorAll('input[name="select"]:checked');
+    const selectedIds = Array.from(checkboxes).map(checkbox => parseInt(checkbox.value, 10));
+    return selectedIds;
+  }
+
+  function downloadSelectedPDF() {
+    const selectedIds = getSelectedIds();
+
+    if (selectedIds.length === 0) {
+      alert("Выберите хотя бы одну аудиторию для скачивания PDF.");
+      return;
+    }
+
+    fetch("/download_pdf_selected", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ ids: selectedIds }),
+    })
+    .then(response => {
+      if (response.ok) {
+        return response.blob();
+      } else {
+        return response.json().then(data => { throw new Error(data.error || "Ошибка при генерации PDF"); });
+      }
+    })
+    .then(blob => {
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'selected_classrooms.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    })
+    .catch(error => {
+      alert(`Ошибка: ${error.message}`);
+    });
+  }
+
+  function downloadAllPDF() {
+    fetch("/download_pdf_all", {
+      method: "GET",
+    })
+    .then(response => {
+      if (response.ok) {
+        return response.blob();
+      } else {
+        return response.json().then(data => { throw new Error(data.error || "Ошибка при генерации PDF"); });
+      }
+    })
+    .then(blob => {
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'all_classrooms.pdf');
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    })
+    .catch(error => {
+      alert(`Ошибка: ${error.message}`);
+    });
+  }
+
+  function deleteSelected() {
+    const selectedIds = getSelectedIds();
+
+    if (selectedIds.length > 0) {
+      fetch("/delete_classrooms", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids: selectedIds }),
+      })
+      .then(response => {
+        if (response.ok) {
+          alert("Аудитории успешно удалены.");
+          location.reload(); // Перезагрузка страницы для обновления данных
+        } else {
+          response.json().then(data => {
+            alert(`Ошибка при удалении аудиторий: ${data.error || "Неизвестная ошибка"}`);
+          });
+        }
+      })
+      .catch(error => {
+        alert("Ошибка при удалении аудиторий");
+      });
+    } else {
+      alert("Выберите хотя бы одну аудиторию для удаления.");
+    }
+  }
+
+  // Начальная отрисовка таблицы
+  renderTable();
+</script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.7/dist/umd/popper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.min.js"></script>
+
+
+{% endblock %}

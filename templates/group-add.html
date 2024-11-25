@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Добавить Группу{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Форма выбора студентов -->
+  <div class="card">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h5 class="card-title">Список студентов</h5>
+        <input type="text" id="filterName" class="form-control" placeholder="Поиск" style="width: 250px;">
+      </div>
+      <div class="table-responsive scrolldown mb-4">
+        <table class="table text-nowrap align-middle mb-0">
+          <thead>
+            <tr class="border-2 border-bottom border-primary border-0">
+              <th scope="col" class="ps-0" style="width: 30px;"></th>
+              <th scope="col">Имя</th>
+              <th scope="col">Фамилия</th>
+              <th scope="col">Отчество</th>
+              <th scope="col">Дата рождения</th>
+              <th scope="col">ИИН</th>
+            </tr>
+          </thead>
+          <tbody id="studentsTable">
+            {% for student in students %}
+            <tr>
+              <th scope="row" class="ps-0 fw-medium">
+                <input class="form-check-input student-checkbox" type="checkbox" name="student_ids" value="{{ student.id }}">
+              </th>
+              <td>{{ student.first_name }}</td>
+              <td>{{ student.last_name }}</td>
+              <td>{{ student.patronymic }}</td>
+              <td>{{ student.birthday }}</td>
+              <td>{{ student.uin }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-warning" role="alert">
+    Перед записью информации о группе убедитесь, что выбрали всех студентов этой группы *
+  </div>
+
+  <!-- Форма создания группы -->
+  <div class="card mt-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between">
+        <h5 class="card-title fw-semibold mb-4">Группа</h5>
+        <div></div>
+        <div>
+          <span id="selectedCount" class="badge bg-primary">Количество выбранных студентов: 0</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <form method="POST" action="{{ url_for('add_group') }}">
+            <div id="selectedStudentsContainer"></div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="GroupNumber" class="form-label">Наименование</label>
+                <input type="text" class="form-control" id="GroupNumber" name="GroupNumber" required>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="course" class="form-label">Курс</label>
+                <select id="course" name="course" class="form-select" required>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="language" class="form-label">Язык обучения</label>
+                <select id="language" name="language" class="form-select" required>
+                  <option value="Казахский">Казахский</option>
+                  <option value="Русский">Русский</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label for="specialty" class="form-label">Специальность</label>
+                <select id="specialty" name="specialty" class="form-select" required>
+                  <option value="Программное обеспечение">Программное обеспечение</option>
+                  <option value="Вычислительная техника">Вычислительная техника</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="curator" class="form-label">Куратор</label>
+                <select id="curator" name="curator" class="form-select">
+                  {% for curator in curators %}
+                  <option value="{{ curator.id }}">{{ curator.first_name }} {{ curator.last_name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" id="addButton">Добавить</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  $(document).ready(function () {
+    $("#filterName").on("input", function () {
+      var value = $(this).val().toLowerCase();
+      $("#studentsTable tr").filter(function () {
+        $(this).toggle($(this).text().toLowerCase().indexOf(value) > -1);
+      });
+    });
+
+    const updateSelectedCount = () => {
+      const selectedCheckboxes = $(".student-checkbox:checked");
+      const count = selectedCheckboxes.length;
+      $("#selectedCount").text(`Количество выбранных студентов: ${count}`);
+
+      $("#selectedStudentsContainer").empty();
+      selectedCheckboxes.each(function () {
+        const studentId = $(this).val();
+        $("#selectedStudentsContainer").append(
+          `<input type="hidden" name="student_ids" value="${studentId}">`
+        );
+      });
+    };
+
+    $(".student-checkbox").on("change", updateSelectedCount);
+  });
+</script>
+{% endblock %}

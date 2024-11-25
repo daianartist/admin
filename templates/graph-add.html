@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Добавить график{% endblock %}
+
+{% block header_actions %}
+<a href="{{ url_for('graph') }}" class="btn btn-secondary">Назад</a>
+{% endblock %}
+
+{% block content %}
+<h2>Добавить график</h2>
+
+<form method="POST" action="{{ url_for('add_graph') }}">
+  <div class="mb-3">
+    <label for="graphName" class="form-label">Наименование</label>
+    <input type="text" id="graphName" name="graph_name" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label for="course" class="form-label">Курс</label>
+    <select id="course" name="course" class="form-select" required>
+      <option value="1">1 курс</option>
+      <option value="2">2 курс</option>
+      <option value="3">3 курс</option>
+    </select>
+  </div>
+  <div class="mb-3">
+    <label for="startDate" class="form-label">Дата начала</label>
+    <input type="date" id="startDate" name="start_date" class="form-control" required>
+  </div>
+  <div class="mb-3">
+    <label for="endDate" class="form-label">Дата окончания</label>
+    <input type="date" id="endDate" name="end_date" class="form-control" required>
+  </div>
+  <button type="submit" class="btn btn-primary">Добавить</button>
+</form>
+{% endblock %}
