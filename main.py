@@ -12,28 +12,37 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 import qrcode
 
-DATABASE='bdByKutenchik'
-DEBUG=True
-SECRET_KEY='DBLFKJADSBCBALIasfGSGDSDHgdf6EF&ADL@E3213IL>SBBFL'
-app=Flask(__name__)
+DEBUG = True
+SECRET_KEY = 'DBLFKJADSBCBALIasfGSGDSDHgdf6EF&ADL@E3213IL>SBBFL'
+app = Flask(__name__)
 upload_folder = os.path.join('static', 'uploads')
 app.config['UPLOAD'] = upload_folder
 app.config.from_object(__name__)
-# подключение к бд
+
+# подключение к локальной БД
 def connect_db():
-    conn=psycopg2.connect('postgresql://postgres:HybqsvFdFjjlwrVmedDTUzaGDjTxmhUT@junction.proxy.rlwy.net:57791/railway')
+    conn = psycopg2.connect(
+        host="10.250.0.64",  # IP-адрес локального сервера
+        port="5432",         # Порт по умолчанию
+        user="postgres",     # Имя пользователя для PostgreSQL
+        password="postgres", # Пароль пользователя
+        database="attendance" # Имя вашей базы данных
+    )
     return conn
-# получение бд
+
+# получение соединения с БД
 def get_db():
-    if not hasattr(g,'link_db'):
-        g.link_db=connect_db()
+    if not hasattr(g, 'link_db'):
+        g.link_db = connect_db()
     return g.link_db
-dbase=None
+
+dbase = None
+
 @app.before_request
 def before_request():
     global dbase
-    db=get_db()
-    dbase=FDATABASE(db)
+    db = get_db()
+    dbase = FDATABASE(db)  # Передаем объект соединения в FDATABASE
 
 @app.route("/download_pdf_selected", methods=["POST"])
 def download_pdf_selected():
@@ -586,4 +595,5 @@ def close_db(error):
     if hasattr(g,'link_db'):
         g.link_db.close()
 if __name__== "__main__":
-    app.run(debug=DEBUG)    
+    app.run(debug=DEBUG, host="0.0.0.0", port=6688)  
+     
