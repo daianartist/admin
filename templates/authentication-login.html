@@ -5,8 +5,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>AC admin</title>
-  <link rel="shortcut icon" type="image/png" href="../assets/images/logos/aituc_logo.png" />
-  <link rel="stylesheet" href="../assets/css/styles.min.css" />
+  <link rel="shortcut icon" type="image/png" href="{{ url_for('static', filename='images/logos/aituc_logo.png') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.min.css') }}">
 </head>
 
 <body>
@@ -21,24 +21,19 @@
             <div class="card mb-0">
               <div class="card-body">
                 <a href="./index.html" class="text-center d-block py-3 w-100">
-                  <img src="../assets/images/logos/aituc_logo.png" alt="Logo" style="max-width: 150px;">
+                  <img src="{{ url_for('static', filename='images/logos/aituc_logo.png') }}" alt="Logo" style="max-width: 150px;">
                 </a>
-                <form>
-                  <div class="mb-3">
-                    <label for="nameInput" class="form-label">Name</label>
-                    <input type="text" class="form-control" id="nameInput" placeholder="Enter your name">
-                  </div>
+                <form method="post">
                   <div class="mb-3">
                     <label for="emailInput" class="form-label">Email Address</label>
-                    <input type="email" class="form-control" id="emailInput" placeholder="Enter your email">
+                    <input type="email" class="form-control" id="emailInput" name="email" placeholder="Enter your email">
                   </div>
                   <div class="mb-4">
                     <label for="passwordInput" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="passwordInput" placeholder="Enter your password">
+                    <input type="password" class="form-control" id="passwordInput" name="password" placeholder="Enter your password">
                   </div>
                   <button type="submit" class="btn btn-primary w-100 py-2">Login</button>
-                  
-                </form>
+                </form>                
               </div>
             </div>
           </div>
