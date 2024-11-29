@@ -1,4 +1,6 @@
-from flask import Flask,render_template,url_for,request,session,redirect,g,abort,flash,jsonify,send_file
+from flask import Flask, render_template, url_for, request, session, redirect, g, abort, flash, jsonify, send_file
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 import psycopg2
 from FDATABASE import FDATABASE
 import psycopg2
@@ -11,7 +13,6 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 import qrcode
-
 DEBUG = True
 SECRET_KEY = 'DBLFKJADSBCBALIasfGSGDSDHgdf6EF&ADL@E3213IL>SBBFL'
 app = Flask(__name__)
@@ -42,8 +43,94 @@ dbase = None
 def before_request():
     global dbase
     db = get_db()
-    dbase = FDATABASE(db)  # Передаем объект соединения в FDATABASE
+    dbase = FDATABASE(db)
+    user_id = session.get('user_id')
+    if user_id:
+        g.user = dbase.get_user_by_id(user_id)
+    else:
+        g.user = None
+        # Разрешаем доступ только к определенным маршрутам без авторизации
+        if request.endpoint not in ('login', 'register', 'static'):
+            return redirect(url_for('login'))
+# Передаем объект соединения в FDATABASE
+def login_required(view):
+    @wraps(view)
+    def wrapped_view(**kwargs):
+        if g.get('user') is None:
+            return redirect(url_for('login'))
+        return view(**kwargs)
+    return wrapped_view
 
+# Маршрут регистрации
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    db = get_db()
+    dbase = FDATABASE(db)
+    if request.method == 'POST':
+        data = request.form
+        name = data.get('name')
+        email = data.get('email')
+        phone_number = data.get('phone')
+        password = data.get('password')
+
+        if not all([name, email, phone_number, password]):
+            flash('Пожалуйста, заполните все поля', 'error')
+            return redirect(url_for('register'))
+
+        if dbase.get_user_by_email(email):
+            flash('Email уже зарегистрирован', 'error')
+            return redirect(url_for('register'))
+
+        # Разбиваем имя на first_name и last_name
+        name_parts = name.strip().split()
+        first_name = name_parts[0]
+        last_name = name_parts[1] if len(name_parts) > 1 else ''
+        patronymic = name_parts[2] if len(name_parts) > 2 else ''
+        # Хэшируем пароль
+        # hashed_password = generate_password_hash(password)
+
+        # Добавляем пользователя с ролью 'admin'
+        success = dbase.add_user(first_name, last_name, patronymic, 'admin', phone_number, password, 0, None, email)
+        if success:
+            flash('Регистрация успешна. Пожалуйста, войдите.', 'success')
+            return redirect(url_for('login'))
+        else:
+            flash('Ошибка при регистрации', 'error')
+            return redirect(url_for('register'))
+    else:
+        return render_template('authentication-reg.html')
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    db = get_db()
+    dbase = FDATABASE(db)
+    if request.method == 'POST':
+        data = request.form
+        email = data.get('email')
+        password = data.get('password')
+
+        if not all([email, password]):
+            flash('Пожалуйста, заполните все поля', 'error')
+            return redirect(url_for('login'))
+
+        user = dbase.get_user_by_email(email)
+        # if user and check_password_hash(user['password'], password):
+        if user and user['password']==password:
+            session['user_id'] = user['id']
+            session['user_role'] = user['role']
+            flash('Вход выполнен успешно', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Неверный email или пароль', 'error')
+            return redirect(url_for('login'))
+    else:
+        return render_template('authentication-login.html')
+
+# Маршрут выхода
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('Вы вышли из системы', 'success')
+    return redirect(url_for('login'))
 @app.route("/download_pdf_selected", methods=["POST"])
 def download_pdf_selected():
     data = request.get_json()
@@ -595,5 +682,4 @@ def close_db(error):
     if hasattr(g,'link_db'):
         g.link_db.close()
 if __name__== "__main__":
-    app.run(debug=DEBUG, host="0.0.0.0", port=6688)  
-     
+    app.run(debug=DEBUG, host="0.0.0.0", port=6688) 
