@@ -76,6 +76,42 @@ class FDATABASE:
     
     
     #------------------ Сотрудники
+    def add_user(self, first_name, last_name, patronymic, role, phone_number, password, uin, birthday, email):
+        sql = """
+            INSERT INTO users (first_name, last_name, patronymic, role, phone_number, password, uin, birthday, email)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+        """
+        try:
+            self.__cur.execute(sql, (first_name, last_name, patronymic, role, phone_number, password, uin, birthday, email))
+            user_id = self.__cur.fetchone()['id']
+            self.__db.commit()
+            return user_id
+        except Exception as e:
+            self.__db.rollback()
+            print(f'Ошибка при добавлении пользователя: {e}')
+            return None
+
+    def get_user_by_email(self, email):
+        sql = "SELECT * FROM users WHERE email = %s"
+        try:
+            self.__cur.execute(sql, (email,))
+            user = self.__cur.fetchone()
+            return user
+        except Exception as e:
+            print(f'Ошибка при получении пользователя по email: {e}')
+            return None
+
+    def get_user_by_id(self, user_id):
+        sql = "SELECT * FROM users WHERE id = %s"
+        try:
+            self.__cur.execute(sql, (user_id,))
+            user = self.__cur.fetchone()
+            return user
+        except Exception as e:
+            print(f'Ошибка при получении пользователя по ID: {e}')
+            return None
+
     def get_all_employees(self):
         sql = """
             SELECT 
@@ -134,7 +170,7 @@ class FDATABASE:
             print(f'Ошибка при чтении сотрудников: {e}')
             return []
 
-
+    
     def add_employee(self, first_name, last_name, patronymic, role, phone_number, password, uin):
         sql = """
             INSERT INTO users (first_name, last_name, patronymic, role, phone_number, password, uin)
