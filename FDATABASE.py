@@ -76,14 +76,19 @@ class FDATABASE:
     
     
     #------------------ Сотрудники
-    def add_user(self, first_name, last_name, patronymic, role, phone_number, password, uin, birthday, email):
-        sql = """
-            INSERT INTO users (first_name, last_name, patronymic, role, phone_number, password, uin, birthday, email)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            RETURNING id
-        """
+    def add_user(self, first_name, last_name, patronymic, role, phone_number, password, email):
         try:
-            self.__cur.execute(sql, (first_name, last_name, patronymic, role, phone_number, password, uin, birthday, email))
+            # Генерируем UIN как инкрементное число
+            self.__cur.execute("SELECT MAX(CAST(uin AS INTEGER)) FROM users")
+            max_uin = self.__cur.fetchone()['max']
+            new_uin = str(1 if max_uin is None else max_uin + 1)
+            
+            sql = """
+                INSERT INTO users (first_name, last_name, patronymic, role, phone_number, password, uin, email)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+            """
+            self.__cur.execute(sql, (first_name, last_name, patronymic, role, phone_number, password, new_uin, email))
             user_id = self.__cur.fetchone()['id']
             self.__db.commit()
             return user_id
@@ -244,7 +249,7 @@ class FDATABASE:
             return True
         except Exception as e:
             self.__db.rollback()
-            print(f'Ошибка при добавлении записи в subjects_teachers: {e}')
+            print(f'Ошибка при добавлении записи �� subjects_teachers: {e}')
             return False
 
     #----------------Конец сотрудников 
@@ -259,6 +264,14 @@ class FDATABASE:
         try:
             self.__cur.execute(sql)
             return self.__cur.fetchall() or []
+        except Exception as e:
+            print(f'Ошибка при чтении групп: {e}')
+            return []
+    def get_specialty_id_by_name(self,specialty_name):
+        sql="SELECT specialty_id FROM SPECIALTIES WHERE specialty_name=%s"
+        try:
+            self.__cur.execute(sql,(specialty_name,))
+            return self.__cur.fetchone() or {}
         except Exception as e:
             print(f'Ошибка при чтении групп: {e}')
             return []
@@ -314,19 +327,21 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
         except Exception as e:
             print(f'Ошибка при получении языков: {e}')
             return []
-
+        
     def get_all_groups(self):
         sql = """
             SELECT 
                 g.group_id,
                 g.group_name,
                 g.course,
-                g.speciality_id,
-                g.language_id,
+                specialties.specialty_name,
+                LANGUAGES.language_name,
                 u.first_name AS curator_first_name,
                 u.last_name AS curator_last_name
             FROM groups g
             LEFT JOIN users u ON g.curator_id = u.id
+			INNER JOIN specialties on g.speciality_id=specialties.specialty_id
+			INNER JOIN LANGUAGES on g.language_id=languages.language_id
         """
         try:
             self.__cur.execute(sql)
@@ -397,11 +412,11 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
                 COALESCE(MIN(g.course::text), 'Нет данных') AS course,
                 COALESCE(string_agg(DISTINCT g.group_name, ' / '), 'Нет данных') AS group_names,
                 COALESCE(
-                    (SELECT COUNT(*) FROM student_attendance sa WHERE sa.status = 'Опоздал' AND sa.uin = u.uin),
+                    (SELECT COUNT(*) FROM student_attendance sa WHERE sa.status = 'yellow' AND sa.uin = u.uin),
                     0
                 ) AS lateness,
                 COALESCE(
-                    (SELECT COUNT(*) FROM student_attendance sa WHERE sa.status IN ('Отсутствовал', 'Заболел', 'red', 'yellow') AND sa.uin = u.uin),
+                    (SELECT COUNT(*) FROM student_attendance sa WHERE sa.status IN ('Отсутствовал', 'Заболел', 'red') AND sa.uin = u.uin),
                     0
                 ) AS missed_classes
             FROM users u
@@ -473,6 +488,22 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
             return False
     # -------------------- Посещаемость
     def get_all_attendance_report(self):
+        # sql = """
+        #     SELECT 
+        #         l.lessonid,
+        #         l.starttime::date AS date,
+        #         l."group" AS group_name,
+        #         l.teacher AS teacher,
+        #         TO_CHAR(l.starttime, 'HH24:MI') || '-' || TO_CHAR(l.endtime, 'HH24:MI') AS time,
+        #         COUNT(CASE WHEN sa.status IN ('green', 'yellow') THEN sa.uin END) AS present,
+        #         COUNT(CASE WHEN sa.status IN ('red') THEN sa.uin END) AS absent
+        #     FROM lessons l
+        #     LEFT JOIN student_attendance sa ON l.lessonid = sa.lessonid
+        #     WHERE 
+        #         l.starttime >= CURRENT_DATE - INTERVAL '7 days'
+        #     GROUP BY l.lessonid, date, group_name, teacher, time
+        #     ORDER BY date DESC, group_name, l.starttime DESC;
+        # """
         sql = """
             SELECT 
                 l.lessonid,
@@ -480,12 +511,10 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
                 l."group" AS group_name,
                 l.teacher AS teacher,
                 TO_CHAR(l.starttime, 'HH24:MI') || '-' || TO_CHAR(l.endtime, 'HH24:MI') AS time,
-                COUNT(CASE WHEN sa.status IN ('Присутствовал', 'Опоздал') THEN sa.uin END) AS present,
-                COUNT(CASE WHEN sa.status IN ('Отсутствовал', 'Заболел') THEN sa.uin END) AS absent
+                COUNT(CASE WHEN sa.status IN ('green', 'yellow') THEN sa.uin END) AS present,
+                COUNT(CASE WHEN sa.status IN ('red') THEN sa.uin END) AS absent
             FROM lessons l
             LEFT JOIN student_attendance sa ON l.lessonid = sa.lessonid
-            WHERE 
-                l.starttime >= CURRENT_DATE - INTERVAL '7 days'
             GROUP BY l.lessonid, date, group_name, teacher, time
             ORDER BY date DESC, group_name, l.starttime DESC;
         """
@@ -506,8 +535,8 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
                 l."group" AS group_name,
                 l.teacher AS teacher,
                 TO_CHAR(l.starttime, 'HH24:MI') || '-' || TO_CHAR(l.endtime, 'HH24:MI') AS time,
-                COUNT(CASE WHEN sa.status IN ('Присутствовал', 'Опоздал') THEN sa.uin END) AS present,
-                COUNT(CASE WHEN sa.status IN ('Отсутствовал', 'Заболел') THEN sa.uin END) AS absent
+                COUNT(CASE WHEN sa.status IN ('green', 'yellow') THEN sa.uin END) AS present,
+                COUNT(CASE WHEN sa.status IN ('red') THEN sa.uin END) AS absent
             FROM lessons l
             LEFT JOIN student_attendance sa ON l.lessonid = sa.lessonid
             WHERE 
@@ -696,7 +725,7 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
             JOIN lessons l ON sa.lesson_id = l.lesson_id
             WHERE 
                 l.starttime >= CURRENT_DATE - INTERVAL '7 days'
-                AND r_student.role_name = 'Студент'
+                AND r_student.role_name = 'С��удент'
         """
         try:
             self.__cur.execute(sql)
@@ -907,4 +936,72 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
             return self.__cur.fetchall() or []
         except Exception as e:
             print(f'Ошибка при получении групп: {e}')
+            return []
+
+    def get_employee_details(self, user_id):
+        sql = """
+            SELECT 
+                u.id,
+                u.first_name,
+                u.last_name,
+                u.patronymic,
+                u.phone_number,
+                u.role,
+                string_agg(DISTINCT s.subject_name, ' / ') AS subjects,
+                string_agg(DISTINCT g.group_name, ' / ') AS groups,
+                COALESCE(att.total_lessons, 0) as total_lessons,
+                COALESCE(att.late_count, 0) as late_count,
+                COALESCE(att.absent_count, 0) as absent_count
+            FROM users u
+            LEFT JOIN subjects_teachers st ON u.id = st.teacher_id
+            LEFT JOIN subjects s ON st.subject_id = s.subject_id
+            LEFT JOIN groups g ON u.id = g.curator_id
+            LEFT JOIN (
+                SELECT 
+                    l.teacher,
+                    COUNT(DISTINCT l.lessonid) as total_lessons,
+                    COUNT(DISTINCT CASE WHEN sa.status = 'yellow' THEN sa.lessonid END) as late_count,
+                    COUNT(DISTINCT CASE WHEN sa.status = 'red' THEN sa.lessonid END) as absent_count
+                FROM lessons l
+                LEFT JOIN student_attendance sa ON l.lessonid = sa.lessonid
+                WHERE l.teacher = (
+                    SELECT CONCAT(first_name, ' ', last_name)
+                    FROM users
+                    WHERE id = %s
+                )
+                GROUP BY l.teacher
+            ) att ON TRUE
+            WHERE u.id = %s AND u.role != 'student'
+            GROUP BY 
+                u.id, u.first_name, u.last_name, u.patronymic, 
+                u.phone_number, u.role, 
+                att.total_lessons, att.late_count, att.absent_count
+        """
+        try:
+            self.__cur.execute(sql, (user_id, user_id))
+            return self.__cur.fetchone()
+        except Exception as e:
+            print(f'Ошибка при получении деталей сотрудника {user_id}: {e}')
+            return None
+
+    def get_employee_attendance(self, user_id):
+        sql = """
+            SELECT 
+                l.starttime::date AS date,
+                TO_CHAR(l.starttime, 'HH24:MI') AS start_time,
+                TO_CHAR(sa.scantime, 'HH24:MI') AS marked_time,
+                l.description AS subject,
+                l."group" AS group_name,
+                sa.status
+            FROM lessons l
+            JOIN student_attendance sa ON l.lessonid = sa.lessonid
+            JOIN users u ON sa.uin = u.uin
+            WHERE u.id = %s AND sa.status IN ('red', 'yellow')
+            ORDER BY l.starttime DESC
+        """
+        try:
+            self.__cur.execute(sql, (user_id,))
+            return self.__cur.fetchall() or []
+        except Exception as e:
+            print(f'Ошибка при получении посещаемости сотрудника {user_id}: {e}')
             return []
