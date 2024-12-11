@@ -12,7 +12,8 @@
 
 <div class="action-buttons mb-3">
   <div class="filters" style="display:inline-flex">
-    <input type="text" id="searchName" placeholder="Поиск по имени" class="form-control me-2" style="width: 200px;"><div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <input type="text" id="searchName" placeholder="Поиск по имени/ИИН" class="form-control me-2" style="width: 200px;">
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-md">
         <div class="modal-content">
           <div class="modal-header justify-content-center">
@@ -57,7 +58,6 @@
         <th>Фамилия</th>
         <th>Отчество</th>
         <th>ИИН</th>
-        <th>Курс</th>
         <th>Группа</th>
         <th>Опоздания</th>
         <th>Пропущенные занятия</th>
@@ -130,49 +130,60 @@
 <script>
   const students = {{ students_json | safe }};
   console.log(students)
-  function renderTable(filterCourse = '', filterGroup = '', searchName = '') {
+  function renderTable(filterCourse = '', filterGroup = '', searchNameOrUin = '') {
     const tbody = document.querySelector('#studentsTable tbody');
     tbody.innerHTML = '';
 
-    const filteredData = students.filter(student =>
-      (!filterCourse || student.course === filterCourse) &&
-      (!filterGroup || student.group_name === filterGroup) &&
-      (!searchName || student.first_name.toLowerCase().includes(searchName.toLowerCase()))
-    );
+    const filteredData = students.filter(student => {
+        // Разделяем строку с группами на массив, если она существует
+        const studentGroups = student.group_names ? student.group_names.split(' / ').map(group => group.trim()) : [];
+
+        return (
+            (!filterCourse || student.course === filterCourse) &&
+            (!filterGroup || studentGroups.includes(filterGroup)) && // Проверяем, входит ли группа в список
+            (!searchNameOrUin || 
+                student.first_name.toLowerCase().includes(searchNameOrUin) || 
+                student.uin.includes(searchNameOrUin)) // Поиск по имени или ИИН
+        );
+    });
 
     filteredData.forEach((student, index) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input class="form-check-input" type="checkbox" name="select" data-id="${student.uin}" value="${student.uin}"></td>
-        <td>${index + 1}</td>
-        <td>${student.first_name}</td>
-        <td>${student.last_name}</td>
-        <td>${student.patronymic}</td>
-        <td>${student.uin}</td>
-        <td>${student.course || '-'}</td>
-        <td>${student.group_names || '-'}</td>
-        <td>${student.lateness}</td>
-        <td>${student.missed_classes}</td>
-        <td><a href="{{ url_for('student_details', uin='') }}${student.uin}" class="btn btn-outline-primary btn-sm">Подробнее</a></td>
-      `;
-      tbody.appendChild(tr);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input class="form-check-input" type="checkbox" name="select" data-id="${student.uin}" value="${student.uin}"></td>
+            <td>${index + 1}</td>
+            <td>${student.first_name}</td>
+            <td>${student.last_name}</td>
+            <td>${student.patronymic}</td>
+            <td>${student.uin}</td>
+            <td style="display:none">${student.course || '-'}</td>
+            <td>${student.group_names || '-'}</td>
+            <td>${student.lateness}</td>
+            <td>${student.missed_classes}</td>
+            <td><a href="{{ url_for('student_details', uin='') }}${student.uin}" class="btn btn-outline-primary btn-sm">Подробнее</a></td>
+        `;
+        tbody.appendChild(tr);
     });
-  }
+}
+
 
   renderTable();
 
   function applyFilters() {
     const filterCourse = document.getElementById('filterCourse').value;
     const filterGroup = document.getElementById('filterGroup').value;
-    const searchName = document.getElementById('searchName').value;
-    renderTable(filterCourse, filterGroup, searchName);
-  }
+    const searchNameOrUin = document.getElementById('searchName').value.toLowerCase(); // Получаем значение из поля поиска
+
+    renderTable(filterCourse, filterGroup, searchNameOrUin);
+}
+
 
   function resetFilters() {
     document.getElementById('filterCourse').value = '';
     document.getElementById('filterGroup').value = '';
-    document.getElementById('searchName').value = '';
+    document.getElementById('searchName').value = ''; // Сбрасываем поле поиска
     renderTable();
   }
+
 </script>
 {% endblock %}
