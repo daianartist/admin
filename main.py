@@ -86,11 +86,9 @@ def register():
         first_name = name_parts[0]
         last_name = name_parts[1] if len(name_parts) > 1 else ''
         patronymic = name_parts[2] if len(name_parts) > 2 else ''
-        # Хэшируем пароль
-        # hashed_password = generate_password_hash(password)
 
         # Добавляем пользователя с ролью 'admin'
-        success = dbase.add_user(first_name, last_name, patronymic, 'admin', phone_number, password, 0, None, email)
+        success = dbase.add_user(first_name, last_name, patronymic, 'admin', phone_number, password, email)
         if success:
             flash('Регистрация успешна. Пожалуйста, войдите.', 'success')
             return redirect(url_for('login'))
@@ -342,6 +340,17 @@ def delete_employees():
     else:
         return jsonify({"error": "Error deleting employees"}), 500
 
+@app.route('/employees/details/<int:user_id>')
+def employee_details(user_id):
+    db = get_db()
+    dbase = FDATABASE(db)
+    employee = dbase.get_employee_details(user_id)
+    if not employee:
+        abort(404)
+    
+    attendance_records = dbase.get_employee_attendance(user_id)
+    return render_template('employee-details.html', employee=employee, attendance_records=attendance_records)
+
 # ------------------------Конец сотрудников
 # ------------------------ Группы
 @app.route('/groups/details/<int:group_id>')
@@ -381,7 +390,8 @@ def groups():
     import json
     from markupsafe import Markup
     groups_json = json.dumps(groups, default=str)
-    return render_template('groups.html', groups_json=Markup(groups_json))
+    specialties=dbase.get_specialties()
+    return render_template('groups.html', groups_json=Markup(groups_json),specialties=specialties)
 
 @app.route('/groups/add', methods=['GET', 'POST'])
 def add_group():
@@ -397,7 +407,6 @@ def add_group():
 
         # Получаем список выбранных студентов
         student_ids = request.form.getlist('student_ids')
-
         # Добавляем группу
         group_id = dbase.add_group(group_name, language, specialty, curator_id, student_ids,course)
         if group_id:
@@ -409,14 +418,16 @@ def add_group():
             else:
                 flash('Ошибка при назначении студентов в группу', 'error')
         else:
-            flash('Ошибка при добавлении группы', 'error')
+            flash('Ошибка при добавл��нии группы', 'error')
 
     # Получаем список студентов без группы
     students = dbase.get_students_with_group()
     # Получаем список кураторов
     curators = dbase.get_curators()
     courses = dbase.get_courses()
-    return render_template('group-add.html', students=students, curators=curators, courses=courses)
+    specialties=dbase.get_specialties()
+    languages=dbase.get_languages()
+    return render_template('group-add.html', students=students, curators=curators, courses=courses,specs=specialties,languages=languages)
 
 # Маршрут для создания группы с выбранными студентами
 @app.route('/add_group_with_students', methods=['POST'])
@@ -447,9 +458,12 @@ def attendance():
     db = get_db()
     dbase = FDATABASE(db)
     
+    groups = dbase.get_groups()
     # Получение данных для таблицы посещаемости
-    attendance_report = dbase.get_attendance_report()
     report = dbase.get_all_attendance_report()
+    import json
+    from markupsafe import Markup
+    attendance_report_json = json.dumps(report, default=str)
     # Получение данных для круговой диаграммы
     pie_data = dbase.get_weekly_attendance_summary()
     
@@ -466,11 +480,14 @@ def attendance():
         'present': [record['present'] for record in bar_data_records],
         'absent': [record['absent'] for record in bar_data_records],
     }
+    print(groups)
     return render_template(
         'attendance.html',
         attendance_report=report,
+        attendance_report_json=Markup(attendance_report_json),
         pie_data=pie_chart_data,
-        bar_data=bar_chart_data
+        bar_data=bar_chart_data,
+        groups=groups
     )
 
 # Новый маршрут для деталей посещаемости урока
@@ -495,6 +512,9 @@ def attendance_details(lessonid):
         'time': f"{attendance_details[0]['starttime'].strftime('%H:%M')} - {attendance_details[0]['endtime'].strftime('%H:%M')}",
         'teacher': attendance_details[0]['teacher']
     }
+    import json
+    from markupsafe import Markup
+    attendance_details_json = json.dumps(attendance_details, default=str)
     # Подсчет статистики
     present_count = sum(1 for record in attendance_details if record['status_name'] in ['Присутствовал','Опоздал'])
     absent_count = sum(1 for record in attendance_details if record['status_name'] in ['Отсутствовал', 'Заболел'])
@@ -508,7 +528,8 @@ def attendance_details(lessonid):
         lesson_info=lesson_info,
         attendance_details=attendance_details,
         stats=stats,
-        lesson_id=lessonid
+        lesson_id=lessonid,
+        attendance_details_json=Markup(attendance_details_json)
     )
 
 @app.route('/delete_lesson/<string:lessonid>')
@@ -600,6 +621,7 @@ def students():
     import json
     from markupsafe import Markup
     students_json = json.dumps(students, default=str)
+    
     return render_template('students.html', students_json=Markup(students_json), groups=groups, courses=courses)
 
 @app.route('/students/add', methods=['GET', 'POST'])
@@ -612,7 +634,7 @@ def add_student():
             first_name=data['firstName'],
             last_name=data['lastName'],
             patronymic=data['patronymic'],
-            birthday=data['birthday'],
+            birthday = int(data['birthday'].replace('-', '')),
             phone_number=data['phone'],
             password=data['password'],
             uin=data['uin']
@@ -652,7 +674,7 @@ def student_details(uin):
         abort(404)
     
     attendance_records = dbase.get_student_attendance(uin)
-    all_groups = dbase.get_all_groups()  # Метод должен вернуть список всех групп
+    all_groups = dbase.get_groups()  # Метод должен вернуть список всех групп
     
     return render_template('student-details.html', student=student, attendance_records=attendance_records, all_groups=all_groups)
 
