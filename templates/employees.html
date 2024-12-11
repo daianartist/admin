@@ -56,6 +56,7 @@
           <th>Своя группа</th>
           <th>Опоздания</th>
           <th>Пропущенные занятия</th>
+          <th>Действия</th>
         </tr>
       </thead>
       <tbody>
@@ -109,21 +110,7 @@
 
 {% block extra_scripts %}
 <script>
-  const employees = [
-    {% for emp in employees %}
-    {
-      id: {{ emp['user_id'] }},
-      firstName: '{{ emp["first_name"] }}',
-      lastName: '{{ emp["last_name"] }}',
-      middleName: '{{ emp["patronymic"] }}',
-      subject: '{{ emp["subject_name"] }}',
-      curator: '{{ emp["curator"] }}',
-      group: '{{ emp["own_groups"] }}',
-      lateness: {{ emp["lateness"] }},
-      missed: {{ emp["missed_classes"] }}
-    }{% if not loop.last %},{% endif %}
-    {% endfor %}
-  ];
+  const employees = {{ employees | tojson | safe }};
 
   let currentDisplayedEmployees = employees;
 
@@ -131,21 +118,25 @@
     currentDisplayedEmployees = filteredData;
     const tbody = document.querySelector('#employeesTable tbody');
     tbody.innerHTML = '';
+    
     filteredData.forEach((employee, index) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input class="form-check-input" type="checkbox" name="select" value="${employee.id}"></td>
-        <td>${index + 1}</td>
-        <td>${employee.firstName}</td>
-        <td>${employee.lastName}</td>
-        <td>${employee.middleName}</td>
-        <td>${employee.subject}</td>
-        <td>${employee.curator}</td>
-        <td>${employee.group}</td>
-        <td>${employee.lateness}</td>
-        <td>${employee.missed}</td>
-      `;
-      tbody.appendChild(tr);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input class="form-check-input" type="checkbox" name="select" value="${employee.user_id}"></td>
+            <td>${index + 1}</td>
+            <td>${employee.first_name}</td>
+            <td>${employee.last_name}</td>
+            <td>${employee.patronymic}</td>
+            <td>${employee.subject_name}</td>
+            <td>${employee.curator}</td>
+            <td>${employee.own_groups}</td>
+            <td>${employee.lateness}</td>
+            <td>${employee.missed_classes}</td>
+            <td>
+                <a href="/employees/details/${employee.user_id}" class="btn btn-outline-primary btn-sm">Подробнее</a>
+            </td>
+        `;
+        tbody.appendChild(tr);
     });
   }
 
@@ -154,14 +145,15 @@
     const searchName = document.getElementById('searchName').value.toLowerCase();
 
     const filteredData = employees.filter(emp => {
-      return (
-        (filterSubject === '' || emp.subject.toLowerCase().includes(filterSubject)) &&
-        (searchName === '' || emp.firstName.toLowerCase().includes(searchName))
-      );
+        return (
+            (filterSubject === '' || (emp.subject_name && emp.subject_name.toLowerCase().includes(filterSubject))) &&
+            (searchName === '' || (emp.first_name && emp.first_name.toLowerCase().includes(searchName)))
+        );
     });
 
     renderTable(filteredData);
-  }
+}
+
 
   function resetFilters() {
     document.getElementById('filterSubject').value = '';
@@ -218,7 +210,7 @@
     const doc = new jsPDF();
 
     // Заголовки таблицы
-    const headers = [['#', 'Имя', 'Фамилия', 'Отчество', 'Предмет', 'Куратор', 'Своя группа', 'Опоздания', 'Пропущенные занятия']];
+    const headers = [['#', 'Имя', 'Фамилия', 'Отчество', 'Предмет', 'Куратор', 'Своя группа', 'Опоздания', 'Пропущенные заня��ия']];
 
     // Данные таблицы
     const rows = dataToDownload.map((emp, index) => [
