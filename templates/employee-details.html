@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Детали Сотрудника{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="employee-details-container">
+    <div class="employee-details-header">
+      <h2>Сотрудник: {{ employee.last_name }} {{ employee.first_name }} {{ employee.patronymic }}</h2>
+    </div>
+
+    <div class="employee-info mb-4">
+      <p><strong>Роль:</strong> {{ employee.role }}</p>
+      <p><strong>Номер телефона:</strong> {{ employee.phone_number }}</p>
+      {% if employee.subjects %}
+      <p><strong>Преподаваемые предметы:</strong> {{ employee.subjects }}</p>
+      {% endif %}
+      {% if employee.groups %}
+      <p><strong>Куратор групп:</strong> {{ employee.groups }}</p>
+      {% endif %}
+    </div>
+
+    <div class="attendance-stats mb-4">
+      <h3>Статистика посещаемости</h3>
+      <div class="row">
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-body text-center">
+              <h5 class="card-title">Всего занятий</h5>
+              <p class="card-text display-4">{{ employee.total_lessons }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-body text-center">
+              <h5 class="card-title">Опоздания</h5>
+              <p class="card-text display-4">{{ employee.late_count }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4">
+          <div class="card">
+            <div class="card-body text-center">
+              <h5 class="card-title">Пропуски</h5>
+              <p class="card-text display-4">{{ employee.absent_count }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="attendance-table-container">
+      <h3>Опоздания и пропуски</h3>
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Дата</th>
+            <th>Начало</th>
+            <th>Время отметки</th>
+            <th>Дисциплина</th>
+            <th>Группа</th>
+            <th>Статус</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for record in attendance_records %}
+          <tr>
+            <td>{{ record.date }}</td>
+            <td>{{ record.start_time }}</td>
+            <td>{{ record.marked_time or '—' }}</td>
+            <td>{{ record.subject }}</td>
+            <td>{{ record.group_name }}</td>
+            <td>
+              {% if record.status == 'yellow' %}
+                <span class="status-dot" style="background-color: #ffc107;" title="Опоздал"></span>
+                Опоздал
+              {% elif record.status == 'red' %}
+                <span class="status-dot" style="background-color: #dc3545;" title="Отсутствовал"></span>
+                Отсутствовал
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+  .status-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 5px;
+  }
+  
+  .employee-info {
+    background-color: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+  }
+  
+  .attendance-stats .card {
+    border: none;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+  }
+  
+  .attendance-stats .card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .attendance-table-container {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  }
+</style>
+{% endblock %} 
