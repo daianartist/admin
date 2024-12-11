@@ -21,7 +21,7 @@
   <select id="filterSpecialty" class="form-select me-2" style="width: 250px; display: inline-block;">
     <option value="">Фильтр по специальности</option>
     {% for specialty in specialties %}
-    <option value="{{ specialty }}">{{ specialty }}</option>
+    <option value="{{  specialty.specialty_name  }}">{{ specialty.specialty_name }}</option>
     {% endfor %}
   </select>
   <a href="javascript:void(0)" onclick="applyFilters()" class="btn btn-add">Применить фильтры</a>
@@ -88,9 +88,9 @@
         <td>${index + 1}</td>
         <td>${group.group_name}</td>
         <td>${group.course}</td>
-        <td>${group.speciality_id}</td>
+        <td>${group.specialty_name}</td>
         <td>${group.curator_first_name || ''} ${group.curator_last_name || ''}</td>
-        <td>${group.language_id}</td>
+        <td>${group.language_name}</td>
         <td><a href="${groupDetailsUrl}" class="btn btn-outline-primary btn-sm">Подробнее</a></td>
       `;
       tbody.appendChild(tr);
@@ -100,18 +100,19 @@
   function applyFilters() {
     const nameFilter = document.getElementById('filterName').value.toLowerCase();
     const courseFilter = document.getElementById('filterCourse').value;
-    const specialtyFilter = document.getElementById('filterSpecialty').value;
-
+    const specialtyFilter = document.getElementById('filterSpecialty').value.toLowerCase();
+  
     const filteredData = data.filter(group => {
       return (
         (nameFilter === '' || group.group_name.toLowerCase().includes(nameFilter)) &&
         (courseFilter === '' || group.course == courseFilter) &&
-        (specialtyFilter === '' || group.speciality_id.includes(specialtyFilter))
+        (specialtyFilter === '' || group.specialty_name.toLowerCase().includes(specialtyFilter))
       );
     });
-
+  
     renderTable(filteredData);
   }
+  
 
   function resetFilters() {
     document.getElementById('filterName').value = '';
