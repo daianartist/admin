@@ -835,6 +835,7 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
     def get_student_details(self, uin):
         sql = """
             SELECT 
+                u.uin,
                 u.id,
                 u.first_name,
                 u.last_name,
