@@ -668,11 +668,10 @@ def student_details(uin):
             return redirect(url_for('student_details', uin=uin))
         else:
             flash('Ошибка при обновлении данных студента', 'error')
-    
     student = dbase.get_student_details(uin)
     if not student:
         abort(404)
-    
+    print(student)
     attendance_records = dbase.get_student_attendance(uin)
     all_groups = dbase.get_groups()  # Метод должен вернуть список всех групп
     
