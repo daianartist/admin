@@ -487,6 +487,31 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
             print(f'Ошибка при добавлении группы: {e}')
             return False
     # -------------------- Посещаемость
+    def get_today_attendance_report(self):
+        sql = """
+            SELECT 
+                l.lessonid,
+                l.starttime::date AS date,
+                l."group" AS group_name,
+                l.teacher AS teacher,
+                TO_CHAR(l.starttime, 'HH24:MI') || '-' || TO_CHAR(l.endtime, 'HH24:MI') AS time,
+                COUNT(CASE WHEN sa.status IN ('green', 'yellow') THEN sa.uin END) AS present,
+                COUNT(CASE WHEN sa.status IN ('red') THEN sa.uin END) AS absent
+            FROM lessons l
+            LEFT JOIN student_attendance sa ON l.lessonid = sa.lessonid
+            WHERE 
+                l.starttime::date = CURRENT_DATE
+            GROUP BY l.lessonid, date, group_name, teacher, time
+            ORDER BY date DESC, group_name, l.starttime DESC;
+        """
+        try:
+            self.__cur.execute(sql)
+            results = self.__cur.fetchall() or []
+            return results
+        except Exception as e:
+            print(f'Ошибка при чтении посещаемости: {e}')
+            self.__db.rollback()
+            return []
     def get_all_attendance_report(self):
         # sql = """
         #     SELECT 
