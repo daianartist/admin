@@ -57,6 +57,87 @@
     margin: 20px auto;
     display: block;
   }
+  .chart-container {
+    display: flex;
+    justify-content: space-evenly;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .chart {
+    width: 45%;
+    min-width: 300px;
+    height: 300px;
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    padding: 1rem;
+    border-radius: 8px;
+  }
+  
+  .table-container {
+    max-height: 800px;
+    overflow-y: auto;
+    margin-top: 1.5rem;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 1rem;
+  }
+  
+  .brand-logo img {
+    max-width: 150px;
+    margin: 20px 0;
+    padding: 0;
+    display: inline-block;
+  }
+  
+  .export-buttons button {
+    padding: 10px 20px;
+    margin: 5px;
+    border: none;
+    color: white;
+    cursor: pointer;
+  }
+  
+  .btn-success {
+    background-color: #28a745;
+  }
+  
+  .btn-primary {
+    background-color: #007bff;
+  }
+  
+  canvas {
+    display: block;
+    width: 100%;
+    max-width: 600px;
+    height: 400px;
+    margin: 20px auto;
+  }
+  
+  .status-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin: 0 3px;
+  }
+  
+  .status-dot:hover {
+    opacity: 0.8;
+    cursor: pointer;
+  }
+  
+  /* Для выравнивания точек и чисел по вертикали */
+  td .status-dot {
+    vertical-align: middle;
+  }
+  
+  /* Отступ между числами */
+  .mx-1 {
+    margin: 0 0.5rem;
+  }
 </style>
 {% endblock %}
 
@@ -84,4 +165,195 @@
     </div>
   </div>
 </div>
+<div class="container-fluid">
+  <h2>Отчёт по посещаемости</h2>
+  <div class="action-buttons mb-3">
+    <input type="date" id="filterDate" class="form-control me-2" style="width: 150px; display: none;">
+    <input list="groupOptions" id="filterGroup" class="form-control me-2" placeholder="Выберите группу" style="width: 250px; display: inline-block;">
+    <datalist id="groupOptions">
+      {% for group in groups %}
+      <option value="{{ group.group_name }}"></option>
+      {% endfor %}
+    </datalist>
+    <input type="time" id="filterTime" class="form-control me-2" style="width: 150px; display: inline-block;">
+    <input type="text" id="filterTeacher" class="form-control me-2" placeholder="Поиск по преподавателю" style="width: 250px; display: inline-block;">
+    <a href="javascript:void(0)" onclick="applyFilters()" class="btn btn-add">Применить фильтры</a>
+    <a href="javascript:void(0)" onclick="resetFilters()" class="btn btn-delete">Сбросить</a>
+  </div>
+  
+  
+  
+  
+  <!-- Таблица посещаемости -->
+  <div class="table-container">
+    <table class="table table-bordered" id="attendanceTable">
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Группа</th>
+          <th>Время</th>
+          <th>Преподаватель</th>
+          <th>Статус</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for record in attendance_report %}
+        <tr>
+          <td>{{ record.date }}</td>
+          <td>{{ record.group_name }}</td>
+          <td>{{ record.time }}</td>
+          <td>{{ record.teacher }}</td>
+          <td class="text-center">
+            <span class="status-dot" style="background-color: #28a745;" title="Присутствуют: {{ record.present }}"></span>
+            <span class="mx-1">{{ record.present }}</span>
+            <span class="status-dot" style="background-color: #dc3545;" title="Отсутствуют: {{ record.absent }}"></span>
+            <span>{{ record.absent }}</span>
+          </td>
+          <td>
+            <a href="{{ url_for('attendance_details', lessonid=record.lessonid) }}" class="btn btn-outline-primary btn-sm">Подробнее</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Кнопки экспорта -->
+  <div class="export-buttons mt-3">
+    <button class="btn btn-success">Экспорт в Excel</button>
+    <button class="btn btn-primary">Экспорт в CSV</button>
+  </div>
+</div>
+{% endblock %}
+{% block extra_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+  const data = {{ attendance_report_json | safe }}; // Добавьте JSON-данные
+
+  function renderTable(filteredData = data) {
+    const tbody = document.querySelector('#attendanceTable tbody');
+    tbody.innerHTML = '';
+    filteredData.forEach(record => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${record.date}</td>
+        <td>${record.group_name}</td>
+        <td>${record.time}</td>
+        <td>${record.teacher}</td>
+        <td class="text-center">
+          <span class="status-dot" style="background-color: #28a745;" title="Присутствуют: ${record.present}"></span>
+          <span class="mx-1">${record.present}</span>
+          <span class="status-dot" style="background-color: #dc3545;" title="Отсутствуют: ${record.absent}"></span>
+          <span>${record.absent}</span>
+        </td>
+        <td>
+          <a href="/attendance/${record.lessonid}/details" class="btn btn-outline-primary btn-sm">Подробнее</a>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function applyFilters() {
+    const dateFilter = document.getElementById('filterDate').value; // Значение в формате YYYY-MM-DD
+    const groupFilter = document.getElementById('filterGroup').value.toLowerCase(); // Значение группы
+    const timeFilter = document.getElementById('filterTime').value; // Значение в формате HH:MM
+    const teacherFilter = document.getElementById('filterTeacher').value.toLowerCase();
+  
+    const filteredData = data.filter(record => {
+      const recordDate = record.date.split(' ')[0]; // Извлекаем дату из строки
+      const recordTime = record.time; // Оставляем время как есть
+  
+      return (
+        (dateFilter === '' || recordDate === dateFilter) &&
+        (groupFilter === '' || record.group_name.toLowerCase().includes(groupFilter)) &&
+        (timeFilter === '' || recordTime.includes(timeFilter)) &&
+        (teacherFilter === '' || record.teacher.toLowerCase().includes(teacherFilter))
+      );
+    });
+  
+    renderTable(filteredData);
+  }
+  
+  
+  function resetFilters() {
+    document.getElementById('filterDate').value = '';
+    document.getElementById('filterGroup').value = '';
+    document.getElementById('filterTime').value = '';
+    document.getElementById('filterTeacher').value = '';
+    renderTable();
+  }
+
+  renderTable();
+</script>
+  <script>
+
+    // Функция экспорта в CSV с BOM для поддержки русских символов
+    function exportToCSV() {
+      let csvContent = '\uFEFFДата,Группа,Время,Преподаватель,Присутствующих,Отсутствующих\n'; // Заголовок
+    
+      data.forEach(record => {
+        csvContent += [
+          record.date, 
+          record.group_name, 
+          record.time, 
+          record.teacher, 
+          record.present, 
+          record.absent
+        ].join(',') + '\n';
+      });
+    
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', 'attendance_report.csv');
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+    }
+    
+
+    function exportToExcel() {
+      const sheetData = data.map(record => ({
+        'Дата': record.date,
+        'Группа': record.group_name,
+        'Время': record.time,
+        'Преподаватель': record.teacher,
+        'Присутствующих': record.present,
+        'Отсутствующих': record.absent
+      }));
+    
+      const worksheet = XLSX.utils.json_to_sheet(sheetData, { header: ['Дата', 'Группа', 'Время', 'Преподаватель', 'Присутствующих', 'Отсутствующих'] });
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Отчёт по посещаемости');
+    
+      const wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'binary' });
+    
+      function s2ab(s) {
+        const buf = new ArrayBuffer(s.length);
+        const view = new Uint8Array(buf);
+        for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+        return buf;
+      }
+    
+      const blob = new Blob([s2ab(wbout)], { type: "application/octet-stream" });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'attendance_report.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    // Связывание кнопок с функциями экспорта
+    document.querySelector('.btn-success').addEventListener('click', exportToExcel);
+    document.querySelector('.btn-primary').addEventListener('click', exportToCSV);
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.7/dist/umd/popper.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.min.js"></script>
 {% endblock %}
