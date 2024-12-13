@@ -544,6 +544,11 @@ def index():
     db = get_db()
     dbase = FDATABASE(db)
     
+    report = dbase.get_today_attendance_report()
+    groups = dbase.get_groups()
+    import json
+    from markupsafe import Markup
+    attendance_report_json = json.dumps(report, default=str)
     # Получение статистики
     total_teachers = dbase.get_total_teachers()
     total_students = dbase.get_total_students()
@@ -553,6 +558,7 @@ def index():
     # Получение данных для графиков
     attendance_summary = dbase.get_weekly_attendance_summary()
     activity_data = dbase.get_activity_data()
+    
     return render_template(
         'index.html',
         total_teachers=total_teachers,
@@ -560,7 +566,11 @@ def index():
         total_groups=total_groups,
         total_classrooms=total_classrooms,
         attendance_summary=attendance_summary,
-        activity_data=activity_data
+        activity_data=activity_data,
+        attendance_report=report,
+        attendance_report_json=Markup(attendance_report_json),
+        groups=groups
+        
     )
 # ------------------------ График
 @app.route('/graph', methods=['GET'])
