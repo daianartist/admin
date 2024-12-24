@@ -1,4 +1,7 @@
+from datetime import datetime
 from psycopg2.extras import RealDictCursor
+import os
+import qrcode
 class FDATABASE:
     def __init__(self, db):
         self.__db = db
@@ -53,15 +56,162 @@ class FDATABASE:
             print(f'Ошибка при чтении AUDIENCE_TYPES: {e}')
             return []
     def add_classroom(self, classroom_number, audience_type_id):
-        sql = "INSERT INTO AUDIENCES (AUDIENCE_NUMBER, AUDIENCES_TYPE) VALUES (%s, %s)"
         try:
-            self.__cur.execute(sql, (classroom_number, audience_type_id))
+            # Вставляем новую аудиторию и получаем AUDIENCE_ID
+            sql_insert = """
+                INSERT INTO audiences (AUDIENCE_NUMBER, AUDIENCES_TYPE)
+                VALUES (%s, %s)
+                RETURNING AUDIENCE_ID
+            """
+            self.__cur.execute(sql_insert, (classroom_number, audience_type_id))
+            audience_id = self.__cur.fetchone()['audience_id']
+            print(f'Добавлена аудитория с ID: {audience_id}')
+            
+            # Генерация roomid, например, 'roomid:1.3.240'
+            roomid = f'roomid:{classroom_number}'
+            print(f'Сгенерирован roomid: {roomid}')
+            
+            # Создание QR-кода с содержимым roomid
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(roomid)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            print('QR-код сгенерирован')
+            
+            # Определение относительного пути для сохранения QR-кода
+            qr_filename = f'roomid_{classroom_number}.png'
+            qr_folder = os.path.join('static', 'uploads')  # относительный путь
+            os.makedirs(qr_folder, exist_ok=True)  # Создаём папку, если её нет
+            qr_path = os.path.join(qr_folder, qr_filename)
+            img.save(qr_path)
+            print(f'QR-код сохранён по пути: {qr_path}')
+            
+            # Обновление записи аудитории с относительным путем к QR-коду и временем обновления
+            relative_qr_path = os.path.join('uploads', qr_filename)  # относительный путь от static
+            sql_update = """
+                UPDATE audiences
+                SET AUDIENCE_QR = %s, AUDIENCE_QR_LAST_UPDATE = NOW()
+                WHERE AUDIENCE_ID = %s
+            """
+            self.__cur.execute(sql_update, (relative_qr_path, audience_id))
             self.__db.commit()
+            print('Запись AUDIENCES обновлена с QR-кодом и временем обновления')
+            
             return True
         except Exception as e:
             self.__db.rollback()
             print(f'Ошибка при добавлении аудитории: {e}')
             return False
+    def update_classroom_qr(self, audience_id):
+        try:
+            # Получаем номер аудитории по ID
+            sql_get = "SELECT AUDIENCE_NUMBER FROM audiences WHERE AUDIENCE_ID = %s"
+            self.__cur.execute(sql_get, (audience_id,))
+            result = self.__cur.fetchone()
+            if not result:
+                print(f'Аудитория с ID {audience_id} не найдена.')
+                return False
+            classroom_number = result['AUDIENCE_NUMBER']
+            
+            # Генерация roomid
+            roomid = f'roomid:{classroom_number}'
+            print(f'Сгенерирован новый roomid: {roomid}')
+            
+            # Создание QR-кода
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(roomid)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white")
+            print('QR-код сгенерирован')
+            
+            # Определение относительного пути для сохранения QR-кода
+            qr_filename = f'roomid_{classroom_number}.png'
+            qr_folder = os.path.join('static', 'uploads')  # относительный путь
+            os.makedirs(qr_folder, exist_ok=True)
+            qr_path = os.path.join(qr_folder, qr_filename)
+            img.save(qr_path)
+            print(f'QR-код сохранён по пути: {qr_path}')
+            
+            # Обновление записи аудитории
+            relative_qr_path = os.path.join('uploads', qr_filename)  # относительный путь от static
+            sql_update = """
+                UPDATE audiences
+                SET AUDIENCE_QR = %s, AUDIENCE_QR_LAST_UPDATE = NOW()
+                WHERE AUDIENCE_ID = %s
+            """
+            self.__cur.execute(sql_update, (relative_qr_path, audience_id))
+            self.__db.commit()
+            print('Запись AUDIENCES обновлена с новым QR-кодом и временем обновления')
+            
+            return True
+        except Exception as e:
+            self.__db.rollback()
+            print(f'Ошибка при обновлении QR-кода аудитории: {e}')
+            return False
+
+    def update_all_qr_codes(self):
+        try:
+            # Получаем все аудитории
+            sql_get_all = "SELECT AUDIENCE_ID, AUDIENCE_NUMBER FROM audiences"
+            self.__cur.execute(sql_get_all)
+            classrooms = self.__cur.fetchall()
+            
+            for class_room in classrooms:
+                audience_id = class_room['audience_id']
+                classroom_number = class_room['audience_number']
+                
+                # Генерация roomid
+                roomid = f'roomid:{classroom_number}'
+                print(f'Сгенерирован roomid: {roomid} для аудитории ID: {audience_id}')
+                
+                # Создание QR-кода
+                qr = qrcode.QRCode(
+                    version=1,
+                    error_correction=qrcode.constants.ERROR_CORRECT_L,
+                    box_size=10,
+                    border=4,
+                )
+                qr.add_data(roomid)
+                qr.make(fit=True)
+                img = qr.make_image(fill_color="black", back_color="white")
+                print(f'QR-код сгенерирован для аудитории ID: {audience_id}')
+                
+                # Определение относительного пути для сохранения QR-кода
+                qr_filename = f'roomid_{classroom_number}.png'
+                qr_folder = os.path.join('static', 'uploads')  # относительный путь
+                os.makedirs(qr_folder, exist_ok=True)  # Создаём папку, если её нет
+                qr_path = os.path.join(qr_folder, qr_filename)
+                img.save(qr_path)
+                print(f'QR-код сохранён по пути: {qr_path} для аудитории ID: {audience_id}')
+                
+                # Обновление записи аудитории с относительным путем к QR-коду и временем обновления
+                relative_qr_path = os.path.join('uploads', qr_filename)  # относительный путь от static
+                sql_update = """
+                    UPDATE audiences
+                    SET AUDIENCE_QR = %s, AUDIENCE_QR_LAST_UPDATE = NOW()
+                    WHERE AUDIENCE_ID = %s
+                """
+                self.__cur.execute(sql_update, (relative_qr_path, audience_id))
+                print(f'Запись AUDIENCES обновлена для аудитории ID: {audience_id}')
+            
+            self.__db.commit()
+            print('Все QR-коды успешно обновлены.')
+            return True
+        except Exception as e:
+            self.__db.rollback()
+            print(f'Ошибка при массовом обновлении QR-кодов: {e}')
+            return False
+
     def delete_classrooms(self, audience_ids):
         sql = "DELETE FROM AUDIENCES WHERE AUDIENCE_ID = ANY(%s::int[])"
         try:
@@ -74,14 +224,21 @@ class FDATABASE:
             return False
     # ----------------Конец аудиторий
     
-    
+    def get_user_by_uin(self, uin):
+        sql = "SELECT * FROM users WHERE uin = %s"
+        try:
+            self.__cur.execute(sql, (uin,))
+            return self.__cur.fetchone()
+        except Exception as e:
+            print(f'Ошибка при получении пользователя по UIN: {e}')
+            return None
+
     #------------------ Сотрудники
     def add_user(self, first_name, last_name, patronymic, role, phone_number, password, email):
         try:
+            import random
             # Генерируем UIN как инкрементное число
-            self.__cur.execute("SELECT MAX(CAST(uin AS INTEGER)) FROM users")
-            max_uin = self.__cur.fetchone()['max']
-            new_uin = str(1 if max_uin is None else max_uin + 1)
+            new_uin = random.randint(1000,9999)
             
             sql = """
                 INSERT INTO users (first_name, last_name, patronymic, role, phone_number, password, uin, email)
@@ -436,14 +593,15 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
 
 
     def get_courses(self):
-        sql = "SELECT DISTINCT course FROM groups ORDER BY course"
-        try:
-            self.__cur.execute(sql)
-            courses = [row['course'] for row in self.__cur.fetchall()]
-            return courses
-        except Exception as e:
-            print(f'Ошибка при получении курсов: {e}')
-            return []
+        # sql = "SELECT DISTINCT course FROM groups ORDER BY course"
+        # try:
+        #     self.__cur.execute(sql)
+        #     courses = [row['course'] for row in self.__cur.fetchall()]
+        #     return courses
+        # except Exception as e:
+        #     print(f'Ошибка при получении курсов: {e}')
+        #     return []
+        return ["1", "2", "3"]
     # Метод для получения списка кураторов
     def get_curators(self):
         sql = """
@@ -487,6 +645,153 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
             print(f'Ошибка при добавлении группы: {e}')
             return False
     # -------------------- Посещаемость
+    def get_attendance_for_index(self):
+        sql = """
+            WITH lateness_counts AS (
+                SELECT sa.uin, COUNT(*) AS lateness
+                FROM student_attendance sa
+                WHERE sa.status = 'yellow'
+                GROUP BY sa.uin
+            )
+            SELECT
+                u.uin,
+                u.last_name,
+                u.first_name,
+                u.patronymic,
+                COALESCE(string_agg(DISTINCT g.group_name, ' / '), 'Нет данных') AS group_names,
+                COALESCE(MIN(g.course::text), 'Нет данных') AS course,
+                COALESCE(lc.lateness, 0) AS lateness
+            FROM users u
+            LEFT JOIN students_groups sg ON u.id = sg.student_id
+            LEFT JOIN groups g ON sg.group_id = g.group_id
+            LEFT JOIN lateness_counts lc ON u.uin = lc.uin
+            WHERE u.role = 'student'
+            GROUP BY u.id, lc.lateness
+            ORDER BY lateness DESC;
+        """
+        
+        try:
+            self.__cur.execute(sql)
+            rows = self.__cur.fetchall() or []
+            return rows
+        except Exception as e:
+            print(f'Ошибка при получении списка get_attendance_for_index: {e}')
+            return []
+    def get_filtered_attendance_for_index(self, start_date, end_date, group_name, course_name, top_lateness):
+        conditions = []
+        params = {}
+
+        # Фильтр по дате
+        date_filter = ""
+        if start_date and end_date:
+            date_filter = "AND l.starttime::date BETWEEN %(start_date)s AND %(end_date)s"
+            params['start_date'] = start_date
+            params['end_date'] = end_date
+        elif start_date:
+            date_filter = "AND l.starttime::date >= %(start_date)s"
+            params['start_date'] = start_date
+        elif end_date:
+            date_filter = "AND l.starttime::date <= %(end_date)s"
+            params['end_date'] = end_date
+
+        # Фильтр по группе
+        if group_name:
+            conditions.append("""
+                EXISTS (
+                    SELECT 1 FROM students_groups sgg
+                    JOIN groups gg ON sgg.group_id = gg.group_id
+                    WHERE sgg.student_id = u.id
+                    AND gg.group_name = %(group_name)s
+                )
+            """)
+            params['group_name'] = group_name
+
+        # Фильтр по курсу
+        if course_name:
+            conditions.append("""
+                EXISTS (
+                    SELECT 1 FROM students_groups sgg2
+                    JOIN groups gg2 ON sgg2.group_id = gg2.group_id
+                    WHERE sgg2.student_id = u.id
+                    AND gg2.course = %(course_name)s
+                )
+            """)
+            params['course_name'] = course_name
+
+        # CTE для подсчёта опозданий с учётом фильтрации по дате
+        cte = """
+            WITH lateness_counts AS (
+                SELECT sa.uin, COUNT(*) AS lateness
+                FROM student_attendance sa
+                JOIN lessons l ON sa.lessonid = l.lessonid
+                WHERE sa.status = 'yellow'
+                {date_filter}
+                GROUP BY sa.uin
+            )
+        """.format(date_filter=date_filter)
+
+        # Базовый SQL-запрос с использованием LEFT JOIN
+        sql = f"""
+            {cte}
+            SELECT
+                u.uin,
+                u.last_name,
+                u.first_name,
+                u.patronymic,
+                COALESCE(string_agg(DISTINCT g.group_name, ' / '), 'Нет данных') AS group_names,
+                COALESCE(MIN(g.course::text), 'Нет данных') AS course,
+                COALESCE(lc.lateness, 0) AS lateness
+            FROM users u
+            LEFT JOIN students_groups sg ON u.id = sg.student_id
+            LEFT JOIN groups g ON sg.group_id = g.group_id
+            LEFT JOIN lateness_counts lc ON u.uin = lc.uin
+            WHERE u.role = 'student'
+        """
+
+        # Добавление дополнительных условий фильтрации
+        if conditions:
+            sql += " AND " + " AND ".join(conditions)
+
+        # Группировка по студенту и опозданиям
+        sql += """
+            GROUP BY u.id, lc.lateness
+        """
+
+        # Сортировка по опозданиям
+        if top_lateness is True:
+            # Больше всего опозданий
+            sql += " ORDER BY lateness DESC"
+        elif top_lateness is False:
+            # Меньше всего опозданий
+            sql += " ORDER BY lateness ASC"
+        else:
+            # По умолчанию: больше всего опозданий
+            sql += " ORDER BY lateness DESC"
+
+        try:
+            self.__cur.execute(sql, params)
+            rows = self.__cur.fetchall() or []
+            result = []
+            for row in rows:
+                result.append({
+                    'uin': row['uin'],
+                    'last_name': row['last_name'],
+                    'first_name': row['first_name'],
+                    'patronymic': row['patronymic'],
+                    'group_names': row['group_names'],
+                    'course': row['course'],
+                    'lateness': row['lateness']
+                })
+            return result
+        except Exception as e:
+            print(f'Ошибка при получении фильтрованного рейтинга: {e}')
+            return []
+
+
+
+
+
+
     def get_today_attendance_report(self):
         sql = """
             SELECT 
@@ -693,6 +998,153 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
         except Exception as e:
             print(f'Ошибка при получении данных активности студентов: {e}')
             return {'labels': [], 'values': []}
+    def get_initial_rating(self):
+        sql = """
+            SELECT
+                u.uin,
+                u.last_name,
+                u.first_name,
+                u.patronymic,
+                COALESCE(string_agg(DISTINCT g.group_name, ' / '), 'Нет данных') AS group_names,
+                COALESCE(MIN(g.course::text), 'Нет данных') AS course,
+                COUNT(DISTINCT CASE WHEN sa.status='green' THEN sa.lessonid END) AS green_count,
+                COUNT(DISTINCT CASE WHEN sa.status='yellow' THEN sa.lessonid END) AS yellow_count,
+                COUNT(DISTINCT CASE WHEN sa.status='red' THEN sa.lessonid END) AS red_count,
+                COUNT(DISTINCT sa.lessonid) AS total,
+                CASE 
+                    WHEN COUNT(DISTINCT sa.lessonid) > 0 THEN 
+                        ROUND((COUNT(DISTINCT CASE WHEN sa.status='green' THEN sa.lessonid END)::decimal / COUNT(DISTINCT sa.lessonid)) * 100, 2)
+                    ELSE 0 
+                END AS quality_percent,
+                CASE 
+                    WHEN COUNT(DISTINCT sa.lessonid) > 0 THEN 
+                        ROUND(((COUNT(DISTINCT CASE WHEN sa.status IN ('green','yellow') THEN sa.lessonid END)::decimal / COUNT(DISTINCT sa.lessonid)) * 100), 2)
+                    ELSE 0 
+                END AS attendance_percent
+            FROM users u
+            LEFT JOIN students_groups sg ON u.id = sg.student_id
+            LEFT JOIN groups g ON sg.group_id = g.group_id
+            LEFT JOIN student_attendance sa ON u.uin = sa.uin
+            WHERE u.role = 'student'
+            GROUP BY u.id
+            ORDER BY u.last_name, u.first_name
+        """
+        
+        try:
+            self.__cur.execute(sql)
+            rows = self.__cur.fetchall() or []
+            return rows
+        except Exception as e:
+            print(f'Ошибка при получении начального рейтинга: {e}')
+            return []
+
+
+
+
+
+    def get_filtered_rating(self, start_date, end_date, teacher, group_name, course_name):
+        params = {}
+        conditions = []
+
+        # Фильтр по дате
+        date_condition = ""
+        if start_date and end_date:
+            date_condition = "AND l.starttime::date BETWEEN %(start_date)s AND %(end_date)s"
+            params['start_date'] = start_date
+            params['end_date'] = end_date
+        elif start_date:
+            date_condition = "AND l.starttime::date >= %(start_date)s"
+            params['start_date'] = start_date
+        elif end_date:
+            date_condition = "AND l.starttime::date <= %(end_date)s"
+            params['end_date'] = end_date
+
+        # Фильтр по преподавателю
+        teacher_condition = ""
+        if teacher:
+            teacher_condition = "AND l.teacher = %(teacher)s"
+            params['teacher'] = teacher
+
+        # Базовый SQL-запрос с использованием LEFT JOIN
+        sql = f"""
+            SELECT
+                u.uin,
+                u.last_name,
+                u.first_name,
+                u.patronymic,
+                COALESCE(string_agg(DISTINCT g.group_name, ' / '), 'Нет данных') AS group_names,
+                COALESCE(MIN(g.course::text), 'Нет данных') AS course,
+                COUNT(DISTINCT CASE WHEN sa.status='green' THEN sa.lessonid END) AS green_count,
+                COUNT(DISTINCT CASE WHEN sa.status='yellow' THEN sa.lessonid END) AS yellow_count,
+                COUNT(DISTINCT CASE WHEN sa.status='red' THEN sa.lessonid END) AS red_count,
+                COUNT(DISTINCT sa.lessonid) AS total,
+                CASE 
+                    WHEN COUNT(DISTINCT sa.lessonid) > 0 THEN 
+                        ROUND((COUNT(DISTINCT CASE WHEN sa.status='green' THEN sa.lessonid END)::decimal / COUNT(DISTINCT sa.lessonid)) * 100, 2)
+                    ELSE 0 
+                END AS quality_percent,
+                CASE 
+                    WHEN COUNT(DISTINCT sa.lessonid) > 0 THEN 
+                        ROUND(((COUNT(DISTINCT CASE WHEN sa.status IN ('green','yellow') THEN sa.lessonid END)::decimal / COUNT(DISTINCT sa.lessonid)) * 100), 2)
+                    ELSE 0 
+                END AS attendance_percent
+            FROM users u
+            LEFT JOIN students_groups sg ON u.id = sg.student_id
+            LEFT JOIN groups g ON sg.group_id = g.group_id
+            LEFT JOIN student_attendance sa ON u.uin = sa.uin
+            LEFT JOIN lessons l ON sa.lessonid = l.lessonid
+            WHERE u.role='student' {date_condition} {teacher_condition}
+        """
+
+        # Фильтр по группе
+        if group_name:
+            conditions.append("""
+                EXISTS (
+                    SELECT 1 FROM students_groups sgg2
+                    JOIN groups gg ON sgg2.group_id = gg.group_id
+                    WHERE sgg2.student_id = u.id AND gg.group_name = %(group_name)s
+                )
+            """)
+            params['group_name'] = group_name
+
+        # Фильтр по курсу
+        if course_name:
+            conditions.append("""
+                EXISTS (
+                    SELECT 1 FROM students_groups sgg3
+                    JOIN groups gg2 ON sgg3.group_id = gg2.group_id
+                    WHERE sgg3.student_id = u.id AND gg2.course = %(course_name)s
+                )
+            """)
+            params['course_name'] = course_name
+
+        # Добавление дополнительных условий фильтрации
+        if conditions:
+            sql += " AND " + " AND ".join(conditions)
+
+        # Группировка и сортировка
+        sql += """
+            GROUP BY u.id
+            ORDER BY u.last_name, u.first_name
+        """
+
+        try:
+            self.__cur.execute(sql, params)
+            rows = self.__cur.fetchall() or []
+            return rows
+        except Exception as e:
+            print(f'Ошибка при получении фильтрованного рейтинга: {e}')
+            return []
+
+
+
+
+
+    def get_all_teachers(self):
+            self.__cur.execute("SELECT DISTINCT teacher as teacher_name FROM lessons WHERE teacher IS NOT NULL ORDER BY teacher;")
+            rows = self.__cur.fetchall() or []
+            return rows
+
     # ----------------- Для главной
     def get_total_teachers(self):
         sql = """
