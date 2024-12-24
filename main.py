@@ -1,9 +1,8 @@
-from flask import Flask, render_template, url_for, request, session, redirect, g, abort, flash, jsonify, send_file
+from flask import Flask, render_template, url_for, request, session, redirect, g, abort, flash, jsonify, send_file, Blueprint
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import psycopg2
 from FDATABASE import FDATABASE
-import psycopg2
 import os
 import io
 from reportlab.pdfgen import canvas
@@ -13,14 +12,50 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 import qrcode
+
 DEBUG = True
 SECRET_KEY = 'DBLFKJADSBCBALIasfGSGDSDHgdf6EF&ADL@E3213IL>SBBFL'
+
 app = Flask(__name__)
 upload_folder = os.path.join('static', 'uploads')
 app.config['UPLOAD'] = upload_folder
 app.config.from_object(__name__)
 
-# подключение к локальной БД
+# Создание Blueprint для API
+api_bp = Blueprint('api', __name__)
+
+# Определение маршрутов Blueprint **до** его регистрации
+@api_bp.route('/test', methods=['GET'])
+def test_api():
+    return jsonify({"message": "API is working"}), 200
+
+@api_bp.route('/login_by_uin', methods=['POST'])
+def login_by_uin():
+    db = get_db()
+    dbase = FDATABASE(db)
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No JSON body provided"}), 400
+    uin = data.get('uin')
+    password = data.get('password')
+    if not all([uin, password]):
+        return jsonify({"error": "Please provide UIN and password"}), 400
+
+    user = dbase.get_user_by_uin(uin)
+    if user and check_password_hash(user['password'], password):
+        return jsonify({
+            "success": True,
+            "user_id": user['id'],
+            "user_role": user['role'],
+            "message": "Login by UIN successful"
+        }), 200
+    else:
+        return jsonify({"error": "Invalid UIN or password"}), 401
+
+# Регистрация Blueprint после определения всех его маршрутов
+app.register_blueprint(api_bp, url_prefix='/api')
+
+# Подключение к локальной БД
 def connect_db():
     conn = psycopg2.connect(
         host="10.250.0.64",  # IP-адрес локального сервера
@@ -31,7 +66,7 @@ def connect_db():
     )
     return conn
 
-# получение соединения с БД
+# Получение соединения с БД
 def get_db():
     if not hasattr(g, 'link_db'):
         g.link_db = connect_db()
@@ -41,6 +76,8 @@ dbase = None
 
 @app.before_request
 def before_request():
+    print(f"Request path: {request.path}")
+    print(f"Is API route: {request.path.startswith('/api/')}")
     global dbase
     db = get_db()
     dbase = FDATABASE(db)
@@ -50,8 +87,10 @@ def before_request():
     else:
         g.user = None
         # Разрешаем доступ только к определенным маршрутам без авторизации
-        if request.endpoint not in ('login', 'register', 'static'):
+        if not request.path.startswith('/api/') and request.endpoint not in ('login', 'register', 'static'):
+            print("Redirecting to login")
             return redirect(url_for('login'))
+
 # Передаем объект соединения в FDATABASE
 def login_required(view):
     @wraps(view)
@@ -60,6 +99,19 @@ def login_required(view):
             return redirect(url_for('login'))
         return view(**kwargs)
     return wrapped_view
+def admin_required(view):
+    @wraps(view)
+    def wrapped_view(**kwargs):
+        # Проверяем, авторизован ли пользователь
+        if g.get('user') is None:
+            return redirect(url_for('login'))
+        # Проверяем, админ ли он
+        if g.user['role'] != 'admin':
+            flash("Доступ запрещён. Только для администраторов.", "error")
+            return redirect(url_for('login'))
+        return view(**kwargs)
+    return wrapped_view
+
 
 # Маршрут регистрации
 @app.route('/register', methods=['GET', 'POST'])
@@ -87,8 +139,11 @@ def register():
         last_name = name_parts[1] if len(name_parts) > 1 else ''
         patronymic = name_parts[2] if len(name_parts) > 2 else ''
 
+        # Хэшируем пароль
+        hashed_password = generate_password_hash(password)
+        
         # Добавляем пользователя с ролью 'admin'
-        success = dbase.add_user(first_name, last_name, patronymic, 'admin', phone_number, password, email)
+        success = dbase.add_user(first_name, last_name, patronymic, 'admin', phone_number, hashed_password, email)
         if success:
             flash('Регистрация успешна. Пожалуйста, войдите.', 'success')
             return redirect(url_for('login'))
@@ -97,6 +152,7 @@ def register():
             return redirect(url_for('register'))
     else:
         return render_template('authentication-reg.html')
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     db = get_db()
@@ -111,8 +167,7 @@ def login():
             return redirect(url_for('login'))
 
         user = dbase.get_user_by_email(email)
-        # if user and check_password_hash(user['password'], password):
-        if user and user['password']==password:
+        if user and check_password_hash(user['password'], password):
             session['user_id'] = user['id']
             session['user_role'] = user['role']
             flash('Вход выполнен успешно', 'success')
@@ -122,6 +177,7 @@ def login():
             return redirect(url_for('login'))
     else:
         return render_template('authentication-login.html')
+
 
 # Маршрут выхода
 @app.route('/logout')
@@ -140,13 +196,13 @@ def download_pdf_selected():
     db = get_db()
     dbase = FDATABASE(db)
     
-    # Получаем информацию об аудиторіях по выбранным ID
+    # Получаем информацию об аудиториях по выбранным ID
     classrooms = dbase.get_classrooms_by_ids(selected_ids)
     
     if not classrooms:
         return jsonify({"error": "No classrooms found for the provided IDs"}), 404
     
-    # Генерация PDF
+    # Генерация PDF с использованием существующих QR-кодов
     pdf_buffer = generate_pdf_with_qrcodes(classrooms)
     
     return send_file(
@@ -167,7 +223,7 @@ def download_pdf_all():
     if not classrooms:
         return jsonify({"error": "No classrooms found"}), 404
     
-    # Генерация PDF
+    # Генерация PDF с использованием существующих QR-кодов
     pdf_buffer = generate_pdf_with_qrcodes(classrooms)
     
     return send_file(
@@ -177,9 +233,15 @@ def download_pdf_all():
         mimetype="application/pdf"
     )
 
+
 def generate_pdf_with_qrcodes(classrooms):
     # Регистрация шрифта с поддержкой кириллицы
-    pdfmetrics.registerFont(TTFont('DejaVuSans', 'DejaVuSans.ttf'))
+    try:
+        pdfmetrics.registerFont(TTFont('DejaVuSans', 'DejaVuSans.ttf'))
+    except Exception as e:
+        print(f"Ошибка при регистрации шрифта: {e}")
+        # Используем стандартный шрифт, если регистрация не удалась
+        pass
     
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
@@ -189,32 +251,43 @@ def generate_pdf_with_qrcodes(classrooms):
     y_position = height - margin
     
     for index, classroom in enumerate(classrooms, start=1):
-        # Создание QR-кода
-        qr_content = f"Номер аудитории: {classroom['audience_number']}, Тип: {classroom['audience_type']}"
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
-        )
-        qr.add_data(qr_content)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
+        # Получаем путь к QR-коду из базы данных
+        qr_code_relative_path = classroom.get('audience_qr')
+        if qr_code_relative_path:
+            # Преобразуем относительный путь в абсолютный путь
+            absolute_qr_path = os.path.join(app.root_path, 'static', qr_code_relative_path)
+            
+            if os.path.exists(absolute_qr_path):
+                try:
+                    qr_image = ImageReader(absolute_qr_path)
+                    # Добавляем QR-код в PDF
+                    c.drawImage(qr_image, margin, y_position - qr_size, qr_size, qr_size)
+                except Exception as e:
+                    print(f"Ошибка при добавлении QR-кода для аудитории {classroom['audience_number']}: {e}")
+                    c.setFont("DejaVuSans", 12)
+                    c.drawString(margin, y_position - qr_size/2, "Ошибка загрузки QR-кода")
+            else:
+                print(f"QR-код не найден по пути: {absolute_qr_path}")
+                c.setFont("DejaVuSans", 12)
+                c.drawString(margin, y_position - qr_size/2, "QR-код отсутствует")
+        else:
+            print(f"Путь к QR-коду отсутствует для аудитории {classroom['audience_number']}")
+            c.setFont("DejaVuSans", 12)
+            c.drawString(margin, y_position - qr_size/2, "QR-код отсутствует")
         
-        # Сохранение QR-кода в байтовый поток
-        img_buffer = io.BytesIO()
-        img.save(img_buffer, format='PNG')
-        img_buffer.seek(0)
-        qr_image = ImageReader(img_buffer)
+        # Добавляем номер аудитории и другие детали
+        classroom_number = classroom.get('audience_number', 'Неизвестно')
+        classroom_type = classroom.get('audience_type', 'Неизвестно')
         
-        # Добавление QR-кода и текста в PDF
-        c.drawImage(qr_image, margin, y_position - qr_size, qr_size, qr_size)
-        c.setFont("DejaVuSans", 12)  # Использование кириллического шрифта
-        c.drawString(margin + qr_size + 10, y_position - 10, f"#{index}: Аудитория {classroom['audience_number']} ({classroom['audience_type']})")
+        # Устанавливаем шрифт и размер
+        c.setFont("DejaVuSans", 12)
+        text_x = margin + qr_size + 10
+        text_y = y_position - 10
+        c.drawString(text_x, text_y, f"#{index}: Аудитория {classroom_number} ({classroom_type})")
         
-        y_position -= (qr_size + 20)
+        y_position -= (qr_size + 20)  # Переходим на следующую строку
         
-        # Добавление новой страницы, если не хватает места
+        # Добавляем новую страницу, если места не хватает
         if y_position < margin + qr_size:
             c.showPage()
             y_position = height - margin
@@ -222,6 +295,7 @@ def generate_pdf_with_qrcodes(classrooms):
     c.save()
     buffer.seek(0)
     return buffer
+
 # ------------------------Аудитория
 @app.route("/classrooms")
 def classrooms():
@@ -243,7 +317,6 @@ def addClassroom():
         if not classroom_number or not classroom_type_id:
             flash("Пожалуйста, заполните все поля", "error")
             return redirect(url_for("addClassroom"))
-        
         # Используем метод add_classroom для добавления записи
         if dbase.add_classroom(classroom_number, classroom_type_id):
             flash("Аудитория успешно добавлена", "success")
@@ -275,6 +348,26 @@ def delete_classrooms():
 
     
     return redirect(url_for("classrooms"))
+@app.route("/classroom-update-qr/<int:audience_id>", methods=["POST"])
+def update_classroom_qr(audience_id):
+    db = get_db()
+    dbase = FDATABASE(db)
+    success = dbase.update_classroom_qr(audience_id)
+    if success:
+        return jsonify({"success": True, "message": "QR-код успешно обновлён"}), 200
+    else:
+        return jsonify({"error": "Ошибка при обновлении QR-кода"}), 500
+
+# Новый маршрут для массового обновления QR-кодов всех аудиторий
+@app.route("/classrooms/update-all-qr", methods=["POST"])
+def update_all_qr():
+    db = get_db()
+    dbase = FDATABASE(db)
+    success = dbase.update_all_qr_codes()
+    if success:
+        return jsonify({"success": True, "message": "Все QR-коды успешно обновлены"}), 200
+    else:
+        return jsonify({"error": "Ошибка при массовом обновлении QR-кодов"}), 500
 # ------------------------Конец аудитории
 
 
@@ -305,7 +398,7 @@ def add_employee():
             patronymic=data['patronymic'],
             role=role,
             phone_number=data['phone'],
-            password=data['password'],
+            password=generate_password_hash(data['password']),
             uin=uin
         )
         
@@ -418,7 +511,7 @@ def add_group():
             else:
                 flash('Ошибка при назначении студентов в группу', 'error')
         else:
-            flash('Ошибка при добавл��нии группы', 'error')
+            flash('Ошибка при добавлнии группы', 'error')
 
     # Получаем список студентов без группы
     students = dbase.get_students_with_group()
@@ -544,34 +637,86 @@ def index():
     db = get_db()
     dbase = FDATABASE(db)
     
-    report = dbase.get_today_attendance_report()
+    report = dbase.get_today_attendance_report()  # Метод, который возвращает "сегодняшнюю" посещаемость
     groups = dbase.get_groups()
     import json
     from markupsafe import Markup
     attendance_report_json = json.dumps(report, default=str)
-    # Получение статистики
+
     total_teachers = dbase.get_total_teachers()
     total_students = dbase.get_total_students()
     total_groups = dbase.get_total_groups()
     total_classrooms = dbase.get_total_classrooms()
-    
-    # Получение данных для графиков
-    attendance_summary = dbase.get_weekly_attendance_summary()
-    activity_data = dbase.get_activity_data()
-    
+    today = dbase.get_attendance_for_index()  # Возвращает топ опаздывающих по умолчанию
+
     return render_template(
         'index.html',
         total_teachers=total_teachers,
         total_students=total_students,
         total_groups=total_groups,
         total_classrooms=total_classrooms,
-        attendance_summary=attendance_summary,
-        activity_data=activity_data,
         attendance_report=report,
         attendance_report_json=Markup(attendance_report_json),
-        groups=groups
-        
+        groups=groups,
+        today=today
     )
+
+@app.route('/filtered_attendance', methods=['POST'])
+def filtered_attendance():
+    db = get_db()
+    dbase = FDATABASE(db)
+    filters = request.get_json()
+
+    start_date = filters.get('start_date')
+    end_date = filters.get('end_date')
+    group_name = filters.get('group_name')
+    course_name = filters.get('course_name')
+    top_lateness = filters.get('top_lateness')  # True/False/None
+    # Преобразуем входные данные top_lateness согласно логике:
+    # top_lateness = True  -> top опаздывающих (больше всего опозданий)
+    # top_lateness = False -> топ реже опаздывающих (меньше всего опозданий)
+    # None -> без специализации, можно по умолчанию больше всего опозданий
+    if top_lateness is True or top_lateness is False:
+        pass
+    else:
+        # Если None, оставим сортировку по умолчанию — допустим, DESC
+        top_lateness = None
+
+    data = dbase.get_filtered_attendance_for_index(start_date, end_date, group_name, course_name, top_lateness)
+    return jsonify(data)
+@app.route('/rating', methods=['GET'])
+def rating():
+    db = get_db()
+    dbase = FDATABASE(db)
+    teachers = dbase.get_all_teachers()  # список преподавателей
+    groups = dbase.get_groups()          # список групп
+    courses = dbase.get_courses()        # список курсов
+
+    initial_data = dbase.get_initial_rating()  # Получаем данные без фильтров
+    # Передадим initial_data в шаблон через JSON
+    import json
+    from markupsafe import Markup
+    initial_data_json = json.dumps(initial_data, default=str)
+
+    return render_template('rating.html', teachers=teachers, groups=groups, courses=courses, initial_data_json=Markup(initial_data_json))
+
+
+@app.route('/filtered_rating', methods=['POST'])
+def filtered_rating():
+    db = get_db()
+    dbase = FDATABASE(db)
+    filters = request.get_json()
+
+    start_date = filters.get('start_date')
+    end_date = filters.get('end_date')
+    teacher = filters.get('teacher')
+    group_name = filters.get('group_name')
+    course_name = filters.get('course_name')
+
+    data = dbase.get_filtered_rating(start_date, end_date, teacher, group_name, course_name)
+    return jsonify(data)
+
+
 # ------------------------ График
 @app.route('/graph', methods=['GET'])
 def graph():
@@ -646,7 +791,7 @@ def add_student():
             patronymic=data['patronymic'],
             birthday = int(data['birthday'].replace('-', '')),
             phone_number=data['phone'],
-            password=data['password'],
+            password=generate_password_hash(data['password']),
             uin=data['uin']
         )
         if success:
