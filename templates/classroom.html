@@ -23,6 +23,7 @@
       <a href="#" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#addModal">
         <span>Удалить</span>
       </a>
+      <button class="btn btn-warning me-2" onclick="updateAllQRCodes()">Обновить все QR</button>
 {%endblock%}
 {% block content %}
 <div class="container-fluid">
@@ -108,7 +109,7 @@
       number: '{{ class["audience_number"] }}',
       type: '{{ class["audience_type"] }}',
       qrCode: 'Активен',
-      updateDateTime: '10.11.24, 10:55'
+      updateDateTime: '{{class["audience_qr_last_update"]}}'
     }{% if not loop.last %},{% endif %}
     {% endfor %}
   ];
@@ -252,7 +253,32 @@
   // Начальная отрисовка таблицы
   renderTable();
 </script>
-
+<script>
+  function updateAllQRCodes() {
+    if (confirm("Вы уверены, что хотите обновить QR-коды всех аудиторий?")) {
+      fetch("/classrooms/update-all-qr", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}), // Можно передать дополнительные данные, если необходимо
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          alert(data.message);
+          location.reload(); // Перезагрузка страницы для отображения обновлённых QR-кодов
+        } else {
+          alert(`Ошибка: ${data.error}`);
+        }
+      })
+      .catch(error => {
+        alert(`Ошибка: ${error.message}`);
+      });
+    }
+  }
+  
+</script>
   <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.7/dist/umd/popper.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.min.js"></script>
 
