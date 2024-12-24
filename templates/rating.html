@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Рейтинг{% endblock %}
+
+{% block extra_head %}
+<style>
+.filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.table-container {
+  max-height: 600px;
+  overflow-y: auto;
+}
+th.sortable {
+  cursor: pointer;
+  white-space: nowrap;
+}
+th.sortable:after {
+  content: " \25B2\25BC"; /* Стрелочки */
+  font-size: 0.7em;
+  color: #aaa;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<h2>Рейтинг</h2>
+<div class="filters">
+  <input type="date" id="filterStartDate" class="form-control" style="width:150px;">
+  <input type="date" id="filterEndDate" class="form-control" style="width:150px;">
+  <select id="filterTeacher" class="form-select" style="width:150px;">
+    <option value="">Преподаватель</option>
+    {% for t in teachers %}
+    <option value="{{ t.teacher_name }}">{{ t.teacher_name }}</option>
+    {% endfor %}
+  </select>
+  <select id="filterGroup" class="form-select" style="width:150px;">
+    <option value="">Группа</option>
+    {% for g in groups %}
+    <option value="{{ g.group_name }}">{{ g.group_name }}</option>
+    {% endfor %}
+  </select>
+  <select id="filterCourse" class="form-select" style="width:150px;">
+    <option value="">Курс</option>
+    {% for c in courses %}
+    <option value="{{ c }}">{{ c }}</option>
+    {% endfor %}
+  </select>
+  <button onclick="applyFilters()" class="btn btn-add" style="color:white">Применить фильтры</button>
+  <button onclick="resetFilters()" class="btn btn-delete">Сбросить</button>
+</div>
+
+<div class="table-container">
+    <table class="table table-bordered" id="ratingTable">
+      <thead>
+        <tr>
+          <th>#</th> <!-- Добавляем столбец нумерации -->
+          <th>ФИО</th>
+          <th>Группы</th>
+          <th>Курс</th>
+          <th class="sortable" data-col="green_count">Зеленый</th>
+          <th class="sortable" data-col="yellow_count">Желтый</th>
+          <th class="sortable" data-col="red_count">Красный</th>
+          <th class="sortable" data-col="total">Итого</th>
+          <th class="sortable" data-col="quality_percent">% качества</th>
+          <th class="sortable" data-col="attendance_percent">% посещаемости</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let ratingData = {{ initial_data_json | safe }}; // Загрузим начальные данные с сервера
+let currentSortCol = null;
+let currentSortDir = 'asc';
+
+function applyFilters() {
+  const start_date = document.getElementById('filterStartDate').value;
+  const end_date = document.getElementById('filterEndDate').value;
+  const teacher = document.getElementById('filterTeacher').value;
+  const group_name = document.getElementById('filterGroup').value;
+  const course_name = document.getElementById('filterCourse').value;
+
+  const data = { start_date, end_date, teacher, group_name, course_name };
+
+  fetch('/filtered_rating', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  .then(res => res.json())
+  .then(data => {
+    ratingData = data;
+    renderTable();
+  });
+}
+
+function resetFilters() {
+  document.getElementById('filterStartDate').value = '';
+  document.getElementById('filterEndDate').value = '';
+  document.getElementById('filterTeacher').value = '';
+  document.getElementById('filterGroup').value = '';
+  document.getElementById('filterCourse').value = '';
+  // После сброса загружаем начальные данные без фильтров
+  ratingData = {{ initial_data_json | safe }};
+  renderTable();
+}
+
+function renderTable() {
+    const tbody = document.querySelector('#ratingTable tbody');
+    tbody.innerHTML = '';
+  
+    let dataToRender = [...ratingData];
+  
+    // Сортировка
+    if (currentSortCol) {
+      dataToRender.sort((a,b) => {
+        let valA = parseFloat(a[currentSortCol]) || 0;
+        let valB = parseFloat(b[currentSortCol]) || 0;
+        if (currentSortDir === 'asc') {
+          return valA - valB;
+        } else {
+          return valB - valA;
+        }
+      });
+    }
+  
+    dataToRender.forEach((row, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i + 1}</td> <!-- Выводим номер строки, начиная с 1 -->
+        <td>${row.last_name} ${row.first_name} ${row.patronymic}</td>
+        <td>${row.group_names}</td>
+        <td>${row.course}</td>
+        <td>${row.green_count}</td>
+        <td>${row.yellow_count}</td>
+        <td>${row.red_count}</td>
+        <td>${row.total}</td>
+        <td>${row.quality_percent}</td>
+        <td>${row.attendance_percent}</td>
+        <td><a href="/students/details/${row.uin}" class="btn btn-outline-primary btn-sm">Подробнее</a></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderTable(); // Отрисовать таблицу с начальными данными
+
+  document.querySelectorAll('#ratingTable th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (currentSortCol === col) {
+        // Меняем направление
+        currentSortDir = (currentSortDir === 'asc') ? 'desc' : 'asc';
+      } else {
+        currentSortCol = col;
+        currentSortDir = 'asc';
+      }
+      renderTable();
+    });
+  });
+});
+</script>
+{% endblock %}
