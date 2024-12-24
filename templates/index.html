@@ -218,7 +218,62 @@
       </tbody>
     </table>
   </div>
+<br>
+<div class="action-buttons mb-3">
+  <input type="date" id="filterStartDate" class="form-control me-2" style="width: 150px; display: inline-block;">
+  <input type="date" id="filterEndDate" class="form-control me-2" style="width: 150px; display: inline-block;">
+  <input list="groupOptions2" id="filterGroup2" class="form-control me-2" placeholder="Выберите группу" style="width: 200px; display: inline-block;">
+  <datalist id="groupOptions2">
+    {% for group in groups %}
+    <option value="{{ group.group_name }}"></option>
+    {% endfor %}
+  </datalist>
+  <select id="filterCourse" class="form-select me-2" style="width: 150px;display: inline-block;">
+    <option value="">Курс</option>
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+  </select>
+  <select id="filterTop" class="form-select me-2" style="width: 190px;display: inline-block;">
+    <option value=""></option>
+    <option value="1">Больше всего опозданий</option>
+    <option value="2">Меньше всего опозданий</option>
+  </select>
+  <a href="javascript:void(0)" onclick="applyFilters2()" class="btn btn-add">Применить фильтры</a>
+  <a href="javascript:void(0)" onclick="resetFilters2()" class="btn btn-delete">Сбросить</a>
+</div>
 
+<!-- Таблица топа -->
+<div class="table-container">
+  <table class="table table-bordered" id="attendanceTable2">
+    <thead>
+      <tr>
+        <th>Фамилия</th>
+        <th>Имя</th>
+        <th>Отчество</th>
+        <th>Группы</th>
+        <th>Курс</th>
+        <th>Опоздания</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for record in today %}
+      <tr>
+        <td>{{ record.last_name }}</td>
+        <td>{{ record.first_name }}</td>
+        <td>{{ record.patronymic }}</td>
+        <td>{{ record.group_names }}</td>
+        <td>{{ record.course }}</td>
+        <td>{{ record.lateness }}</td>
+        <td>
+          <a href="{{ url_for('student_details', uin=record.uin) }}" class="btn btn-outline-primary btn-sm">Подробнее</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
   <!-- Кнопки экспорта -->
   <div class="export-buttons mt-3">
     <button class="btn btn-success">Экспорт в Excel</button>
@@ -227,6 +282,68 @@
 </div>
 {% endblock %}
 {% block extra_scripts %}
+<script>
+  function applyFilters2() {
+    const startDate = document.getElementById('filterStartDate').value;
+    const endDate = document.getElementById('filterEndDate').value;
+    const group = document.getElementById('filterGroup2').value;
+    const course = document.getElementById('filterCourse').value;
+    const top = document.getElementById('filterTop').value;
+  
+    let top_lateness = null;
+    if (top === "1") {
+      top_lateness = true;
+    } else if (top === "2") {
+      top_lateness = false;
+    }
+  
+    const data = {
+      start_date: startDate,
+      end_date: endDate,
+      group_name: group,
+      course_name: course,
+      top_lateness: top_lateness
+    };
+  
+    fetch('/filtered_attendance', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+      const tableBody = document.querySelector("#attendanceTable2 tbody");
+      tableBody.innerHTML = ""; // Очищаем таблицу
+  
+      data.forEach(record => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${record.last_name}</td>
+          <td>${record.first_name}</td>
+          <td>${record.patronymic}</td>
+          <td>${record.group_names}</td>
+          <td>${record.course}</td>
+          <td>${record.lateness}</td>
+          <td>
+            <a href="/students/details/${record.uin}" class="btn btn-outline-primary btn-sm">Подробнее</a>
+          </td>
+        `;
+        tableBody.appendChild(row);
+      });
+    });
+  }
+  
+  function resetFilters2() {
+    document.getElementById('filterStartDate').value = '';
+    document.getElementById('filterEndDate').value = '';
+    document.getElementById('filterGroup2').value = '';
+    document.getElementById('filterCourse').value = '';
+    document.getElementById('filterTop').value = '';
+    applyFilters2(); // Перезагрузить таблицу без фильтров (выдаст дефолтный топ)
+  }
+  </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
   const data = {{ attendance_report_json | safe }}; // Добавьте JSON-данные
