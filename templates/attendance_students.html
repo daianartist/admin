@@ -110,12 +110,12 @@
       <tbody id="attendance-table-body">
         {% for record in attendance_details %}
         <tr>
-          <td>{{ record.student_last_name }} {{ record.student_first_name }} {{ record.patronymic }}</td>
+          <td style="text-align:left">{{ record.student_last_name }} {{ record.student_first_name }} {{ record.patronymic }}</td>
           <td>{{ record.group_name }}</td>
           <td>{{ record.subject_name }}</td>
           <td>{{ lesson_info.date }}</td>
           <td>{{ lesson_info.time }}</td>
-          <td>{{ lesson_info.teacher }}</td>
+          <td style="text-align:left">{{ lesson_info.teacher }}</td>
           <td>
             {% if record.status_name in ['Присутствовал', 'green'] %}
                 <span class="status-dot" style="background-color: #28a745;" title="Присутствовал"></span>
@@ -132,7 +132,6 @@
       </tbody>
     </table>
   </div>
-
   <!-- Кнопки экспорта и управления -->
   <div class="mt-3 d-flex justify-content-between">
     <div>
