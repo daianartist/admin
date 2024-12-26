@@ -1,4 +1,4 @@
-from flask import Flask, render_template, url_for, request, session, redirect, g, abort, flash, jsonify, send_file, Blueprint
+from flask import Flask, render_template, url_for, request, session, redirect, g, abort, flash, jsonify, send_file, Blueprint, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 import psycopg2
@@ -12,6 +12,8 @@ from reportlab.lib.units import mm
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 import qrcode
+import jwt
+from datetime import datetime, timedelta
 
 DEBUG = True
 SECRET_KEY = 'DBLFKJADSBCBALIasfGSGDSDHgdf6EF&ADL@E3213IL>SBBFL'
@@ -29,6 +31,28 @@ api_bp = Blueprint('api', __name__)
 def test_api():
     return jsonify({"message": "API is working"}), 200
 
+# @api_bp.route('/login_by_uin', methods=['POST'])
+# def login_by_uin():
+#     db = get_db()
+#     dbase = FDATABASE(db)
+#     data = request.get_json()
+#     if not data:
+#         return jsonify({"error": "No JSON body provided"}), 400
+#     uin = data.get('uin')
+#     password = data.get('password')
+#     if not all([uin, password]):
+#         return jsonify({"error": "Please provide UIN and password"}), 400
+
+#     user = dbase.get_user_by_uin(uin)
+#     if user and check_password_hash(user['password'], password):
+#         return jsonify({
+#             "success": True,
+#             "user_id": user['id'],
+#             "user_role": user['role'],
+#             "message": "Login by UIN successful"
+#         }), 200
+#     else:
+#         return jsonify({"error": "Invalid UIN or password"}), 401
 @api_bp.route('/login_by_uin', methods=['POST'])
 def login_by_uin():
     db = get_db()
@@ -36,6 +60,7 @@ def login_by_uin():
     data = request.get_json()
     if not data:
         return jsonify({"error": "No JSON body provided"}), 400
+    
     uin = data.get('uin')
     password = data.get('password')
     if not all([uin, password]):
@@ -43,14 +68,30 @@ def login_by_uin():
 
     user = dbase.get_user_by_uin(uin)
     if user and check_password_hash(user['password'], password):
+        # Генерируем JWT-токен при успехе:
+        payload = {
+            "sub": uin,             # например, уникальный идентификатор
+            "user_id": user['id'],
+            "user_role": user['role'],
+            "exp": datetime.utcnow() + timedelta(hours=24)  # срок действия 24 часа
+        }
+        # Берём секретный ключ из настроек приложения
+        secret_key = current_app.config.get('SECRET_KEY', 'DBLFKJADSBCBALIasfGSGDSDHgdf6EF&ADL@E3213IL>SBBFL')  # <-- замените на реальный ключ
+
+        token = jwt.encode(payload, secret_key, algorithm="HS256")
+        if isinstance(token, bytes):
+            token = token.decode('utf-8')  # на случай, если PyJWT вернёт bytes
+
         return jsonify({
             "success": True,
             "user_id": user['id'],
             "user_role": user['role'],
-            "message": "Login by UIN successful"
+            "message": "Login by UIN successful",
+            "token": token             # <-- добавляем поле token
         }), 200
     else:
         return jsonify({"error": "Invalid UIN or password"}), 401
+ 
 
 # Регистрация Blueprint после определения всех его маршрутов
 app.register_blueprint(api_bp, url_prefix='/api')
