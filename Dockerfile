@@ -9,7 +9,7 @@ COPY requirements.txt /app/
 
 # Устанавливаем зависимости из requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-
+ENV FLASK_APP=main.py
 # Копируем весь проект в контейнер
 COPY . /app/
 
