@@ -1,4 +1,4 @@
-# Используем официальный Python-образ (например, для Python 3.13)
+# Используем официальный Python-образ (например, для Python 3.11)
 FROM python:3.11-slim
 
 # Устанавливаем рабочую директорию внутри контейнера
@@ -9,12 +9,12 @@ COPY requirements.txt /app/
 
 # Устанавливаем зависимости из requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-ENV FLASK_APP=main.py
+
 # Копируем весь проект в контейнер
 COPY . /app/
 
 # Указываем порт, который будет использоваться приложением
-EXPOSE 5000
+EXPOSE 6688
 
 # Команда для запуска Flask-приложения
-CMD ["flask", "run", "--host=0.0.0.0", "--port=5000"]
+CMD ["flask", "run", "--host=0.0.0.0", "--port=6688"]
