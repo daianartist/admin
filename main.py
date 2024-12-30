@@ -30,7 +30,51 @@ api_bp = Blueprint('api', __name__)
 @api_bp.route('/test', methods=['GET'])
 def test_api():
     return jsonify({"message": "API is working"}), 200
-
+@api_bp.route('/user/<string:uin>', methods=['GET']) 
+def get_user_by_uin(uin): 
+    # Получаем заголовок Authorization 
+    auth_header = request.headers.get('Authorization', None) 
+    if not auth_header: 
+        return jsonify({"error": "Authorization header missing"}), 401 
+     
+    # Проверяем формат заголовка Authorization 
+    parts = auth_header.split() 
+    if len(parts) != 2 or parts[0].lower() != 'bearer': 
+        return jsonify({"error": "Invalid Authorization header format"}), 401 
+     
+    token = parts[1] 
+     
+    try: 
+        # Декодируем JWT-токен 
+        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"]) 
+    except jwt.ExpiredSignatureError: 
+        return jsonify({"error": "Token expired"}), 401 
+    except jwt.InvalidTokenError: 
+        return jsonify({"error": "Invalid token"}), 401 
+ 
+    # Получаем соединение с БД 
+    db = get_db() 
+    dbase = FDATABASE(db) 
+     
+    # Получаем пользователя по UIN 
+    user = dbase.get_user_by_uin(uin) 
+    if not user: 
+        return jsonify({"error": "User not found"}), 404 
+ 
+    # Формируем ответ без поля 'password' для безопасности 
+    user_data = { 
+        "role": user.get('role'), 
+        "last_name": user.get('last_name'), 
+        "first_name": user.get('first_name'), 
+        "patronymic": user.get('patronymic'), 
+        "uin": user.get('uin'), 
+        "email": user.get('email'), 
+        "phone_number": user.get('phone_number'), 
+        "id_card": user.get('id_card'), 
+        "group": user.get('group') 
+    } 
+ 
+    return jsonify(user_data), 200
 # @api_bp.route('/login_by_uin', methods=['POST'])
 # def login_by_uin():
 #     db = get_db()
@@ -900,48 +944,3 @@ def close_db(error):
         g.link_db.close()
 if __name__== "__main__":
     app.run(debug=DEBUG, host="0.0.0.0", port=6688) 
-@api_bp.route('/user/<string:uin>', methods=['GET']) 
-def get_user_by_uin(uin): 
-    # Получаем заголовок Authorization 
-    auth_header = request.headers.get('Authorization', None) 
-    if not auth_header: 
-        return jsonify({"error": "Authorization header missing"}), 401 
-     
-    # Проверяем формат заголовка Authorization 
-    parts = auth_header.split() 
-    if len(parts) != 2 or parts[0].lower() != 'bearer': 
-        return jsonify({"error": "Invalid Authorization header format"}), 401 
-     
-    token = parts[1] 
-     
-    try: 
-        # Декодируем JWT-токен 
-        payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=["HS256"]) 
-    except jwt.ExpiredSignatureError: 
-        return jsonify({"error": "Token expired"}), 401 
-    except jwt.InvalidTokenError: 
-        return jsonify({"error": "Invalid token"}), 401 
- 
-    # Получаем соединение с БД 
-    db = get_db() 
-    dbase = FDATABASE(db) 
-     
-    # Получаем пользователя по UIN 
-    user = dbase.get_user_by_uin(uin) 
-    if not user: 
-        return jsonify({"error": "User not found"}), 404 
- 
-    # Формируем ответ без поля 'password' для безопасности 
-    user_data = { 
-        "role": user.get('role'), 
-        "last_name": user.get('last_name'), 
-        "first_name": user.get('first_name'), 
-        "patronymic": user.get('patronymic'), 
-        "uin": user.get('uin'), 
-        "email": user.get('email'), 
-        "phone_number": user.get('phone_number'), 
-        "id_card": user.get('id_card'), 
-        "group": user.get('group') 
-    } 
- 
-    return jsonify(user_data), 200
