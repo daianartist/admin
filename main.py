@@ -475,8 +475,19 @@ def add_employee():
         role = data['role']
         subject_id = int(data['subject'])
         group_ids = request.form.getlist('groups')
-        uin = data['uin']
+        # uin = data['uin']
         
+        # teacher_id = dbase.add_employee(
+        #     first_name=data['firstName'],
+        #     last_name=data['lastName'],
+        #     patronymic=data['patronymic'],
+        #     role=role,
+        #     phone_number=data['phone'],
+        #     password=generate_password_hash(data['password']),
+        #     uin=uin
+        # )
+        import random
+        uin = random.randint(100000000000,999999999999)
         teacher_id = dbase.add_employee(
             first_name=data['firstName'],
             last_name=data['lastName'],
@@ -486,8 +497,9 @@ def add_employee():
             password=generate_password_hash(data['password']),
             uin=uin
         )
-        
         if teacher_id:
+            with open('login_passwords_employees.txt', 'a', encoding='utf-8') as f:
+                f.write(f"{data['lastName']} {data['firstName']} {data['patronymic']} | {uin} | {data['password']}\n")
             success_subject_teacher = dbase.add_subject_teacher(subject_id, teacher_id, group_ids)
             if success_subject_teacher:
                 flash("Сотрудник успешно добавлен", "success")
@@ -853,6 +865,8 @@ def add_student():
     dbase = FDATABASE(db)
     if request.method == 'POST':
         data = request.form
+        import random
+        uin = random.randint(100000000000,999999999999)
         success = dbase.add_student(
             first_name=data['firstName'],
             last_name=data['lastName'],
@@ -860,10 +874,13 @@ def add_student():
             birthday = int(data['birthday'].replace('-', '')),
             phone_number=data['phone'],
             password=generate_password_hash(data['password']),
-            uin=data['uin']
+            # uin=data['uin']
+            uin=uin
         )
         if success:
             flash('Студент успешно добавлен', 'success')
+            with open('login_passwords_students.txt', 'a', encoding='utf-8') as f:
+                f.write(f"{data['lastName']} {data['firstName']} {data['patronymic']} | {uin} | {data['password']}\n")
             return redirect(url_for('students'))
         else:
             flash('Ошибка при добавлении студента', 'error')
