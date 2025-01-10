@@ -35,15 +35,31 @@
           </div>
           <div class="col-md-6 mb-3">
             <label for="password" class="form-label">Пароль</label>
-            <input type="password" class="form-control" id="password" name="password" required>
+            <div class="input-group">
+              <!-- Поле ввода пароля -->
+              <input type="password" class="form-control" id="password" name="password" required>
+          
+              <!-- Кнопка "Сгенерировать" -->
+              <button class="btn btn-outline-secondary" type="button" onclick="generatePassword()">
+                Сгенерировать
+              </button>
+          
+              <!-- Кнопка-"глазок" для показа/скрытия пароля -->
+              <button class="btn btn-outline-secondary" type="button" onclick="togglePasswordVisibility()">
+                <span id="passwordEyeIcon">👁️</span>
+              </button>
+            </div>
           </div>
+          
         </div>
+        <!--
         <div class="row">
           <div class="col-md-6 mb-3">
             <label for="uin" class="form-label">ИИН</label>
             <input type="text" class="form-control" id="uin" name="uin" required>
           </div>
         </div>
+        -->
         <button type="submit" class="btn btn-primary" id="addButton">Добавить</button>
       </form>
     </div>
@@ -52,6 +68,35 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script>
+  // Генерация случайного 6-значного пароля (только цифры)
+  function generatePassword() {
+    let pass = '';
+    for (let i = 0; i < 6; i++) {
+      pass += Math.floor(Math.random() * 10); // случайное число [0..9]
+    }
+    document.getElementById('password').value = pass;
+  }
+
+  // Переключение вида: password <-> text
+  function togglePasswordVisibility() {
+    const passwordInput = document.getElementById('password');
+    const eyeIcon = document.getElementById('passwordEyeIcon');
+
+    if (passwordInput.type === 'password') {
+      // показываем пароль
+      passwordInput.type = 'text';
+      // меняем значок на "закрыть глаз"
+      eyeIcon.textContent = '🙈'; 
+    } else {
+      // скрываем пароль
+      passwordInput.type = 'password';
+      // возвращаем значок "глаз"
+      eyeIcon.textContent = '👁️';
+    }
+  }
+</script>
+
 <script>
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.inputmask/5.0.7/jquery.inputmask.min.js"></script>
