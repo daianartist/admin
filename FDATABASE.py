@@ -1320,7 +1320,8 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
                 u.patronymic,
                 u.phone_number,
                 string_agg(g.group_name, ' / ') AS group_names,
-                array_agg(g.group_id) AS group_ids
+                array_agg(g.group_id) AS group_ids,
+                u.uin as login
             FROM users u
             LEFT JOIN students_groups sg ON u.id = sg.student_id
             LEFT JOIN groups g ON sg.group_id = g.group_id
@@ -1426,6 +1427,7 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
                 u.patronymic,
                 u.phone_number,
                 u.role,
+                u.uin as login,
                 string_agg(DISTINCT s.subject_name, ' / ') AS subjects,
                 string_agg(DISTINCT g.group_name, ' / ') AS groups,
                 COALESCE(att.total_lessons, 0) as total_lessons,
