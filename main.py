@@ -642,29 +642,12 @@ def attendance():
     import json
     from markupsafe import Markup
     attendance_report_json = json.dumps(report, default=str)
-    # Получение данных для круговой диаграммы
-    pie_data = dbase.get_weekly_attendance_summary()
     
-    # Получение данных для столбчатой диаграммы
-    bar_data_records = dbase.get_last_day_attendance_per_group()
-    # Подготовка данных для круговой диаграммы
-    pie_chart_data = {
-        'present': pie_data['present'],
-        'absent': pie_data['absent'],
-    }
-    # Подготовка данных для столбчатой диаграммы
-    bar_chart_data = {
-        'groups': [record['group_name'] for record in bar_data_records],
-        'present': [record['present'] for record in bar_data_records],
-        'absent': [record['absent'] for record in bar_data_records],
-    }
     print(groups)
     return render_template(
         'attendance.html',
         attendance_report=report,
         attendance_report_json=Markup(attendance_report_json),
-        pie_data=pie_chart_data,
-        bar_data=bar_chart_data,
         groups=groups
     )
 
