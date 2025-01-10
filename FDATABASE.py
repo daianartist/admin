@@ -894,6 +894,7 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
                 u."group" AS group_name,
                 l.starttime,
                 l.endtime,
+                TO_CHAR(sa.scantime, 'HH24:MI') AS scantime,
                 l.teacher AS teacher,
                 sa.status AS status_name
             FROM 
