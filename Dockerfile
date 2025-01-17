@@ -14,10 +14,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . /app/
 
 # Указываем порт, который будет использоваться приложением
-EXPOSE 6688
+EXPOSE 8989
 
 # Указываем Flask, что основное приложение — это main.py
 ENV FLASK_APP=main.py
 
 # Команда для запуска Flask-приложения
-CMD ["flask", "run", "--host=0.0.0.0", "--port=6688"]
+CMD ["flask", "run", "--host=0.0.0.0", "--port=8989"]
