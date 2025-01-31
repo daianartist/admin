@@ -1419,7 +1419,12 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
             return []
 
     def get_employee_details(self, user_id):
-        sql = """
+        """
+        Возвращает информацию о сотруднике, включая:
+        - total_lessons_count (считаем, сколько записей в lessons, где teacheruin = uin),
+        - late_count, absent_count (считаем только те "yellow"/"red", у которых есть запись в lesson_creation_times).
+        """
+        sql_base = """
             SELECT 
                 u.id,
                 u.first_name,
@@ -1430,40 +1435,101 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
                 u.uin as login,
                 string_agg(DISTINCT s.subject_name, ' / ') AS subjects,
                 string_agg(DISTINCT g.group_name, ' / ') AS groups,
-                COALESCE(att.total_lessons, 0) as total_lessons,
-                COALESCE(att.late_count, 0) as late_count,
-                COALESCE(att.absent_count, 0) as absent_count
+
+                -- Эти два поля ниже мы фактически не используем, но оставим для наглядности
+                COALESCE(att.late_count, 0)   AS old_late_count,  
+                COALESCE(att.absent_count, 0) AS old_absent_count
+
             FROM users u
             LEFT JOIN subjects_teachers st ON u.id = st.teacher_id
-            LEFT JOIN subjects s ON st.subject_id = s.subject_id
-            LEFT JOIN groups g ON u.id = g.curator_id
+            LEFT JOIN subjects s         ON st.subject_id = s.subject_id
+            LEFT JOIN groups   g         ON u.id = g.curator_id
+
+            -- Подзапрос, где мы считаем late_count и absent_count
             LEFT JOIN (
                 SELECT 
-                    l.teacher,
-                    COUNT(DISTINCT l.lessonid) as total_lessons,
-                    COUNT(DISTINCT CASE WHEN sa.status = 'yellow' THEN sa.lessonid END) as late_count,
-                    COUNT(DISTINCT CASE WHEN sa.status = 'red' THEN sa.lessonid END) as absent_count
+                    l.teacheruin,
+
+                    /* 
+                    Считаем "yellow", но только если в lesson_creation_times есть запись,
+                    то есть lct.lessonid IS NOT NULL.
+                    */
+                    COUNT(
+                    DISTINCT CASE 
+                        WHEN sa.status = 'yellow' AND lct.lessonid IS NOT NULL
+                        THEN l.lessonid
+                    END
+                    ) AS late_count,
+
+                    /*
+                    То же для "red": только если lesson_creation_times есть, считаем пропуск
+                    */
+                    COUNT(
+                    DISTINCT CASE 
+                        WHEN sa.status = 'red' AND lct.lessonid IS NOT NULL
+                        THEN l.lessonid
+                    END
+                    ) AS absent_count
+
                 FROM lessons l
-                LEFT JOIN student_attendance sa ON l.lessonid = sa.lessonid
-                WHERE l.teacher = (
-                    SELECT CONCAT(first_name, ' ', last_name)
-                    FROM users
-                    WHERE id = %s
-                )
-                GROUP BY l.teacher
-            ) att ON TRUE
-            WHERE u.id = %s AND u.role != 'student'
+                LEFT JOIN student_attendance sa
+                    ON l.lessonid = sa.lessonid
+                LEFT JOIN lesson_creation_times lct
+                    ON l.lessonid = lct.lessonid
+                GROUP BY l.teacheruin
+            ) att ON att.teacheruin = u.uin
+
+            WHERE u.id = %s 
+            AND u.role != 'student'
             GROUP BY 
                 u.id, u.first_name, u.last_name, u.patronymic, 
-                u.phone_number, u.role, 
-                att.total_lessons, att.late_count, att.absent_count
+                u.phone_number, u.role, u.uin,
+                att.late_count, att.absent_count
         """
+
+        # Чтобы найти total_lessons_count, используем teacheruin:
+        sql_teacher_uin = "SELECT uin FROM users WHERE id = %s"
+
+        # Сколько всего уроков у преподавателя (просто считаем записи в lessons по teacheruin):
+        sql_lessons_count = """
+            SELECT COUNT(*) AS total_lessons_count
+            FROM lessons
+            WHERE teacheruin = %s
+        """
+
         try:
-            self.__cur.execute(sql, (user_id, user_id))
-            return self.__cur.fetchone()
+            # 1) Основной запрос с left join'ами
+            self.__cur.execute(sql_base, (user_id,))
+            employee = self.__cur.fetchone()
+            if not employee:
+                return None
+
+            # 2) Нужно достать uin препода:
+            self.__cur.execute(sql_teacher_uin, (user_id,))
+            row_uin = self.__cur.fetchone()
+            if not row_uin:
+                # Если почему-то нет, ставим 0
+                employee['total_lessons_count'] = 0
+                return employee
+
+            teacher_uin = row_uin['uin']
+
+            # 3) Подсчитываем общее количество уроков для этого teacher_uin
+            self.__cur.execute(sql_lessons_count, (teacher_uin,))
+            row_count = self.__cur.fetchone()
+            if row_count:
+                employee['total_lessons_count'] = row_count['total_lessons_count']
+            else:
+                employee['total_lessons_count'] = 0
+
+            return employee
+
         except Exception as e:
             print(f'Ошибка при получении деталей сотрудника {user_id}: {e}')
             return None
+
+
+
 
     def get_employee_attendance(self, user_id):
         sql = """
