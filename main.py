@@ -225,7 +225,7 @@ def register():
         patronymic = name_parts[2] if len(name_parts) > 2 else ''
 
         # Хэшируем пароль
-        hashed_password = generate_password_hash(password)
+        hashed_password = generate_password_hash(password, method="pbkdf2:sha256")
         
         # Добавляем пользователя с ролью 'admin'
         success = dbase.add_user(first_name, last_name, patronymic, 'admin', phone_number, hashed_password, email)
@@ -494,7 +494,7 @@ def add_employee():
             patronymic=data['patronymic'],
             role=role,
             phone_number=data['phone'],
-            password=generate_password_hash(data['password']),
+            password=generate_password_hash(data['password'], method="pbkdf2:sha256"),
             uin=uin
         )
         if teacher_id:
@@ -539,7 +539,17 @@ def employee_details(user_id):
         abort(404)
     
     attendance_records = dbase.get_employee_attendance(user_id)
-    return render_template('employee-details.html', employee=employee, attendance_records=attendance_records)
+
+    # employee уже содержит total_lessons_count и late_lessons_count,
+    # если всё ок.
+
+    return render_template(
+        'employee-details.html',
+        employee=employee,
+        attendance_records=attendance_records
+    )
+
+
 
 # ------------------------Конец сотрудников
 # ------------------------ Группы
@@ -873,7 +883,7 @@ def add_student():
             patronymic=data['patronymic'],
             birthday = int(data['birthday'].replace('-', '')),
             phone_number=data['phone'],
-            password=generate_password_hash(data['password']),
+            password=generate_password_hash(data['password'], method="pbkdf2:sha256"),
             # uin=data['uin']
             uin=uin
         )
