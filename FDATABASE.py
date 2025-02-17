@@ -393,21 +393,28 @@ class FDATABASE:
             print(f'Ошибка при чтении групп: {e}')
             return []
 
-    def add_subject_teacher(self, subject_id, teacher_id, group_ids=None):
+    def add_subject_teacher(self, subjects_ids, teacher_id, group_ids=None):
         try:
-            if group_ids:
-                sql = "INSERT INTO subjects_teachers (subject_id, teacher_id, group_id) VALUES (%s, %s, %s)"
-                for group_id in group_ids:
-                    self.__cur.execute(sql, (subject_id, teacher_id, group_id))
-            else:
-                sql = "INSERT INTO subjects_teachers (subject_id, teacher_id) VALUES (%s, %s)"
-                self.__cur.execute(sql, (subject_id, teacher_id))
+            if not isinstance(subjects_ids, list):
+                subjects_ids = [subjects_ids]  # Преобразуем в список, если передан один предмет
+
+            sql_with_group = "INSERT INTO subjects_teachers (subject_id, teacher_id, group_id) VALUES (%s, %s, %s)"
+            sql_without_group = "INSERT INTO subjects_teachers (subject_id, teacher_id) VALUES (%s, %s)"
+
+            for subject_id in subjects_ids:
+                if group_ids:
+                    for group_id in group_ids:
+                        self.__cur.execute(sql_with_group, (subject_id, teacher_id, group_id))
+                else:
+                    self.__cur.execute(sql_without_group, (subject_id, teacher_id))
+
             self.__db.commit()
             return True
         except Exception as e:
             self.__db.rollback()
-            print(f'Ошибка при добавлении записи �� subjects_teachers: {e}')
+            print(f'Ошибка при добавлении записи в subjects_teachers: {e}')
             return False
+
 
     #----------------Конец сотрудников 
     def showGroups(self):
@@ -454,7 +461,7 @@ INNER JOIN USERS ON CURATOR_ID=USERS.ID WHERE GROUP_ID=%s
             return []
     def get_group_students(self,group_id):
         sql="""
-            SELECT STUDENT_ID AS STUDENT_ID, FIRST_NAME AS STUDENT_FIRST_NAME,LAST_NAME AS STUDENT_LAST_NAME 
+            SELECT DISTINCT STUDENT_ID AS STUDENT_ID, FIRST_NAME AS STUDENT_FIRST_NAME,LAST_NAME AS STUDENT_LAST_NAME 
             FROM STUDENTS_GROUPS 
             INNER JOIN USERS ON STUDENT_ID=ID
             WHERE GROUP_ID=%s

@@ -13,8 +13,10 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfbase import pdfmetrics
 import qrcode
 import jwt
+import pandas as pd
+import random
+from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
-
 DEBUG = True
 SECRET_KEY = 'DBLFKJADSBCBALIasfGSGDSDHgdf6EF&ADL@E3213IL>SBBFL'
 
@@ -149,6 +151,13 @@ def connect_db():
         password="postgres", # Пароль пользователя
         database="attendance" # Имя вашей базы данных
     )
+    # conn = psycopg2.connect(
+    #     host="localhost",  # IP-адрес локального сервера
+    #     port="5432",         # Порт по умолчанию
+    #     user="postgres",     # Имя пользователя для PostgreSQL
+    #     password="postgres", # Пароль пользователя
+    #     database="poseshaemostCollege" # Имя вашей базы данных
+    # )
     return conn
 
 # Получение соединения с БД
@@ -473,7 +482,7 @@ def add_employee():
     if request.method == "POST":
         data = request.form
         role = data['role']
-        subject_id = int(data['subject'])
+        subject_ids =request.form.getlist('subject')
         group_ids = request.form.getlist('groups')
         # uin = data['uin']
         
@@ -500,7 +509,7 @@ def add_employee():
         if teacher_id:
             with open('login_passwords_employees.txt', 'a', encoding='utf-8') as f:
                 f.write(f"{data['lastName']} {data['firstName']} {data['patronymic']} | {uin} | {data['password']}\n")
-            success_subject_teacher = dbase.add_subject_teacher(subject_id, teacher_id, group_ids)
+            success_subject_teacher = dbase.add_subject_teacher(subject_ids, teacher_id, group_ids)
             if success_subject_teacher:
                 flash("Сотрудник успешно добавлен", "success")
                 return redirect(url_for('employees'))
@@ -868,7 +877,91 @@ def students():
     students_json = json.dumps(students, default=str)
     
     return render_template('students.html', students_json=Markup(students_json), groups=groups, courses=courses)
+@app.route("/students/upload", methods=["POST"])
+def upload_students_excel():
+    db = get_db()
+    dbase = FDATABASE(db)
 
+    if "excel_file" not in request.files:
+        flash("Файл не загружен", "danger")
+        return redirect(url_for("add_student"))
+
+    file = request.files["excel_file"]
+    if file.filename == "":
+        flash("Файл не выбран", "danger")
+        return redirect(url_for("add_student"))
+
+    if file:
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config["UPLOAD"], filename)
+        file.save(filepath)
+
+        # Читаем файл Excel
+        try:
+            df = pd.read_excel(filepath, dtype=str)
+
+            # Ожидаемые названия столбцов
+            expected_columns = ["Фамилия", "Имя", "Отчество", "Дата рождения", "Номер телефона"]
+            if list(df.columns) != expected_columns:
+                flash("Неверный формат файла! Проверьте названия столбцов.", "danger")
+                return redirect(url_for("add_student"))
+
+            students_added = 0
+
+            # Обрабатываем данные
+            with open('login_passwords_students.txt', 'a', encoding='utf-8') as f:
+                for _, row in df.iterrows():
+                    last_name = row["Фамилия"].strip()
+                    first_name = row["Имя"].strip()
+                    patronymic = row["Отчество"].strip()
+                    phone_number = row["Номер телефона"].strip()
+
+                    # Проверяем, что номер телефона содержит только цифры
+                    if not phone_number.isdigit():
+                        flash(f"Ошибка: Номер телефона у {first_name} {last_name} должен содержать только цифры!", "danger")
+                        continue
+
+                    # Преобразуем дату рождения в формат ГГГГММДД
+                    try:
+                        day, month, year = map(int, row["Дата рождения"].split("."))
+                        birthday = int(f"{year:04}{month:02}{day:02}")
+                    except ValueError:
+                        flash(f"Ошибка формата даты у {first_name} {last_name}!", "danger")
+                        continue
+
+                    # Генерируем случайный UIN
+                    uin = random.randint(100000000000, 999999999999)
+
+                    # Генерируем пароль
+                    password = str(random.randint(100000, 999999))
+                    hashed_password = generate_password_hash(password, method="pbkdf2:sha256")
+
+                    # Добавляем студента в базу данных
+                    success = dbase.add_student(
+                        first_name=first_name,
+                        last_name=last_name,
+                        patronymic=patronymic,
+                        birthday=birthday,
+                        phone_number=phone_number,
+                        password=hashed_password,
+                        uin=uin
+                    )
+
+                    if success:
+                        students_added += 1
+                        # Сохраняем логины и пароли
+                        f.write(f"{last_name} {first_name} {patronymic} | {uin} | {password}\n")
+
+            flash(f"Успешно добавлено {students_added} студентов!", "success")
+            return redirect(url_for("add_student"))
+
+        except Exception as e:
+            flash(f"Ошибка обработки файла: {e}", "danger")
+            return redirect(url_for("add_student"))
+
+    else:
+        flash("Разрешены только файлы .xlsx и .xls", "danger")
+        return redirect(url_for("add_student"))
 @app.route('/students/add', methods=['GET', 'POST'])
 def add_student():
     db = get_db()

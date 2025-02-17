@@ -68,7 +68,7 @@
     </div>
     <div class="col-md-6 mb-3">
       <label for="subject" class="form-label">Предмет</label>
-      <select id="subject" name="subject" class="form-select" required>
+      <select id="subject" name="subject" class="form-select" multiple>
         {% for subject in subjects %}
         <option value="{{ subject['subject_id'] }}">{{ subject['subject_name'] }}</option>
         {% endfor %}

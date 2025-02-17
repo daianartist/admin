@@ -7,6 +7,24 @@
   <h5 class="card-title fw-semibold mb-4">Добавить Студента</h5>
   <div class="card">
     <div class="card-body">
+      <h6 class="mb-3">Загрузить студентов из Excel</h6>
+      <p><strong>Примечание:</strong> Файл Excel должен содержать следующие столбцы в указанном порядке:</p>
+      <ul>
+        <li>1) Фамилия</li>
+        <li>2) Имя</li>
+        <li>3) Отчество</li>
+        <li>4) Дата рождения (день.месяц.год)</li>
+        <li>5) Номер телефона (без пробелов)</li>
+      </ul>
+      <form action="{{ url_for('upload_students_excel') }}" method="POST" enctype="multipart/form-data">
+        <div class="mb-3">
+          <input type="file" class="form-control" name="excel_file" accept=".xlsx, .xls" required>
+        </div>
+        <button type="submit" class="btn btn-success">Загрузить</button>
+      </form>
+
+      <hr>
+      <h6 class="mb-3">Добавить студента вручную</h6>
       <form action="{{ url_for('add_student') }}" method="POST">
         <div class="row">
           <div class="col-md-6 mb-3">
