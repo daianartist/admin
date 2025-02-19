@@ -14,7 +14,9 @@ class FDATABASE:
             SELECT 
                 audience_id,
                 audience_number,
-                audience_type_name AS AUDIENCE_TYPE
+                audience_type_name AS AUDIENCE_TYPE,
+                audiences.AUDIENCE_QR,
+                TO_CHAR(audiences.AUDIENCE_QR_LAST_UPDATE, 'DD.MM.YY, HH24:MI') AS AUDIENCE_QR_LAST_UPDATE
             FROM 
                 audiences
             JOIN 
