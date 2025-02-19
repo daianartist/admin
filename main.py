@@ -151,13 +151,7 @@ def connect_db():
         password="postgres", # Пароль пользователя
         database="attendance" # Имя вашей базы данных
     )
-    # conn = psycopg2.connect(
-    #     host="localhost",  # IP-адрес локального сервера
-    #     port="5432",         # Порт по умолчанию
-    #     user="postgres",     # Имя пользователя для PostgreSQL
-    #     password="postgres", # Пароль пользователя
-    #     database="poseshaemostCollege" # Имя вашей базы данных
-    # )
+    
     return conn
 
 # Получение соединения с БД
@@ -331,7 +325,7 @@ def download_pdf_all():
 def generate_pdf_with_qrcodes(classrooms):
     # Регистрация шрифта с поддержкой кириллицы
     try:
-        pdfmetrics.registerFont(TTFont('DejaVuSans', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+        pdfmetrics.registerFont(TTFont('TNR', 'static\\uploads\\fonts\\times.ttf'))
     except Exception as e:
         print(f"Ошибка при регистрации шрифта: {e}")
         # Используем стандартный шрифт, если регистрация не удалась
@@ -358,15 +352,15 @@ def generate_pdf_with_qrcodes(classrooms):
                     c.drawImage(qr_image, margin, y_position - qr_size, qr_size, qr_size)
                 except Exception as e:
                     print(f"Ошибка при добавлении QR-кода для аудитории {classroom['audience_number']}: {e}")
-                    c.setFont("DejaVuSans", 12)
+                    c.setFont("TNR", 12)
                     c.drawString(margin, y_position - qr_size/2, "Ошибка загрузки QR-кода")
             else:
                 print(f"QR-код не найден по пути: {absolute_qr_path}")
-                c.setFont("DejaVuSans", 12)
+                c.setFont("TNR", 12)
                 c.drawString(margin, y_position - qr_size/2, "QR-код отсутствует")
         else:
             print(f"Путь к QR-коду отсутствует для аудитории {classroom['audience_number']}")
-            c.setFont("DejaVuSans", 12)
+            c.setFont("TNR", 12)
             c.drawString(margin, y_position - qr_size/2, "QR-код отсутствует")
         
         # Добавляем номер аудитории и другие детали
@@ -374,7 +368,7 @@ def generate_pdf_with_qrcodes(classrooms):
         classroom_type = classroom.get('audience_type', 'Неизвестно')
         
         # Устанавливаем шрифт и размер
-        c.setFont("DejaVuSans", 12)
+        c.setFont("TNR", 12)
         text_x = margin + qr_size + 10
         text_y = y_position - 10
         c.drawString(text_x, text_y, f"#{index}: Аудитория {classroom_number} ({classroom_type})")
