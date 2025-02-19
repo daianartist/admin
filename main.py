@@ -331,7 +331,7 @@ def download_pdf_all():
 def generate_pdf_with_qrcodes(classrooms):
     # Регистрация шрифта с поддержкой кириллицы
     try:
-        pdfmetrics.registerFont(TTFont('DejaVuSans', 'DejaVuSans.ttf'))
+        pdfmetrics.registerFont(TTFont('DejaVuSans', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
     except Exception as e:
         print(f"Ошибка при регистрации шрифта: {e}")
         # Используем стандартный шрифт, если регистрация не удалась
