@@ -324,12 +324,12 @@ def download_pdf_all():
 
 def generate_pdf_with_qrcodes(classrooms):
     # Регистрация шрифта с поддержкой кириллицы
-    try:
-        pdfmetrics.registerFont(TTFont('TNR', 'static\\uploads\\fonts\\times.ttf'))
-    except Exception as e:
-        print(f"Ошибка при регистрации шрифта: {e}")
-        # Используем стандартный шрифт, если регистрация не удалась
-        pass
+    # try:
+    #     pdfmetrics.registerFont(TTFont('TNR', 'static\\uploads\\fonts\\times.ttf'))
+    # except Exception as e:
+    #     print(f"Ошибка при регистрации шрифта: {e}")
+    #     # Используем стандартный шрифт, если регистрация не удалась
+    #     pass
     
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
@@ -352,26 +352,26 @@ def generate_pdf_with_qrcodes(classrooms):
                     c.drawImage(qr_image, margin, y_position - qr_size, qr_size, qr_size)
                 except Exception as e:
                     print(f"Ошибка при добавлении QR-кода для аудитории {classroom['audience_number']}: {e}")
-                    c.setFont("TNR", 12)
-                    c.drawString(margin, y_position - qr_size/2, "Ошибка загрузки QR-кода")
+                    # c.setFont("TNR", 12)
+                    # c.drawString(margin, y_position - qr_size/2, "Ошибка загрузки QR-кода")
             else:
                 print(f"QR-код не найден по пути: {absolute_qr_path}")
-                c.setFont("TNR", 12)
-                c.drawString(margin, y_position - qr_size/2, "QR-код отсутствует")
+                # c.setFont("TNR", 12)
+                # c.drawString(margin, y_position - qr_size/2, "QR-код отсутствует")
         else:
             print(f"Путь к QR-коду отсутствует для аудитории {classroom['audience_number']}")
-            c.setFont("TNR", 12)
-            c.drawString(margin, y_position - qr_size/2, "QR-код отсутствует")
+            # c.setFont("TNR", 12)
+            # c.drawString(margin, y_position - qr_size/2, "QR-код отсутствует")
         
         # Добавляем номер аудитории и другие детали
         classroom_number = classroom.get('audience_number', 'Неизвестно')
         classroom_type = classroom.get('audience_type', 'Неизвестно')
         
         # Устанавливаем шрифт и размер
-        c.setFont("TNR", 12)
-        text_x = margin + qr_size + 10
-        text_y = y_position - 10
-        c.drawString(text_x, text_y, f"#{index}: Аудитория {classroom_number} ({classroom_type})")
+        # c.setFont("TNR", 12)
+        # text_x = margin + qr_size + 10
+        # text_y = y_position - 10
+        # c.drawString(text_x, text_y, f"#{index}: Аудитория {classroom_number} ({classroom_type})")
         
         y_position -= (qr_size + 20)  # Переходим на следующую строку
         
