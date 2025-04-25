@@ -145,11 +145,12 @@ app.register_blueprint(api_bp, url_prefix='/api')
 # Подключение к локальной БД
 def connect_db():
     conn = psycopg2.connect(
-        host="10.250.0.64",  # IP-адрес локального сервера
-        port="5432",         # Порт по умолчанию
-        user="postgres",     # Имя пользователя для PostgreSQL
-        password="postgres", # Пароль пользователя
-        database="attendance" # Имя вашей базы данных
+    host="167.86.70.162",      # внешний IP твоего сервера
+    port="5432",               # порт PostgreSQL
+    user="myuser",             # имя пользователя из строки
+    password="12345678",       # пароль
+    database="postgres",       # имя БД
+    client_encoding="UTF8"     # кодировка (необязательно, но можно)
     )
     
     return conn
