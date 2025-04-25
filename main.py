@@ -1041,4 +1041,4 @@ def close_db(error):
     if hasattr(g,'link_db'):
         g.link_db.close()
 if __name__== "__main__":
-    app.run(debug=DEBUG, host="0.0.0.0", port=6688) 
+    app.run(debug=DEBUG, host="0.0.0.0", port=8989) 
